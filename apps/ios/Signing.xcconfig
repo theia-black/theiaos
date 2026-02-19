@@ -1,0 +1,13 @@
+// Default signing values for shared/repo builds.
+// For local development overrides, create LocalSigning.xcconfig (git-ignored).
+
+THEIAOS_CODE_SIGN_STYLE = Manual
+THEIAOS_DEVELOPMENT_TEAM = Y5PE65HELJ
+
+THEIAOS_APP_BUNDLE_ID = ai.theiaos.ios
+THEIAOS_SHARE_BUNDLE_ID = ai.theiaos.ios.share
+
+THEIAOS_APP_PROFILE = ai.theiaos.ios Development
+THEIAOS_SHARE_PROFILE = ai.theiaos.ios.share Development
+
+#include? "LocalSigning.xcconfig"

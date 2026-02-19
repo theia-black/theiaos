@@ -1,0 +1,12 @@
+// Copy to LocalSigning.xcconfig for personal local signing overrides.
+// This file is only an example and should stay committed.
+
+THEIAOS_CODE_SIGN_STYLE = Automatic
+THEIAOS_DEVELOPMENT_TEAM = P5Z8X89DJL
+
+THEIAOS_APP_BUNDLE_ID = ai.theiaos.ios.test.mariano
+THEIAOS_SHARE_BUNDLE_ID = ai.theiaos.ios.test.mariano.share
+
+// Leave empty with automatic signing.
+THEIAOS_APP_PROFILE =
+THEIAOS_SHARE_PROFILE =

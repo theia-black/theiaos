@@ -1,0 +1,35 @@
+{
+  "name": "@theiaos/zalo",
+  "version": "2026.2.18",
+  "description": "TheiaOS Zalo channel plugin",
+  "type": "module",
+  "dependencies": {
+    "undici": "7.22.0"
+  },
+  "devDependencies": {
+    "theiaos": "workspace:*"
+  },
+  "theiaos": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "channel": {
+      "id": "zalo",
+      "label": "Zalo",
+      "selectionLabel": "Zalo (Bot API)",
+      "docsPath": "/channels/zalo",
+      "docsLabel": "zalo",
+      "blurb": "Vietnam-focused messaging platform with Bot API.",
+      "aliases": [
+        "zl"
+      ],
+      "order": 80,
+      "quickstartAllowFrom": true
+    },
+    "install": {
+      "npmSpec": "@theiaos/zalo",
+      "localPath": "extensions/zalo",
+      "defaultChoice": "npm"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@theiaos/discord",
+  "version": "2026.2.18",
+  "description": "TheiaOS Discord channel plugin",
+  "type": "module",
+  "devDependencies": {
+    "theiaos": "workspace:*"
+  },
+  "theiaos": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

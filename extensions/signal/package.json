@@ -1,0 +1,15 @@
+{
+  "name": "@theiaos/signal",
+  "version": "2026.2.18",
+  "private": true,
+  "description": "TheiaOS Signal channel plugin",
+  "type": "module",
+  "devDependencies": {
+    "theiaos": "workspace:*"
+  },
+  "theiaos": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

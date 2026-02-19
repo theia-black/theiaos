@@ -1,0 +1,29 @@
+{
+  "name": "@theiaos/mattermost",
+  "version": "2026.2.18",
+  "private": true,
+  "description": "TheiaOS Mattermost channel plugin",
+  "type": "module",
+  "devDependencies": {
+    "theiaos": "workspace:*"
+  },
+  "theiaos": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "channel": {
+      "id": "mattermost",
+      "label": "Mattermost",
+      "selectionLabel": "Mattermost (plugin)",
+      "docsPath": "/channels/mattermost",
+      "docsLabel": "mattermost",
+      "blurb": "self-hosted Slack-style chat; install the plugin to enable.",
+      "order": 65
+    },
+    "install": {
+      "npmSpec": "@theiaos/mattermost",
+      "localPath": "extensions/mattermost",
+      "defaultChoice": "npm"
+    }
+  }
+}
