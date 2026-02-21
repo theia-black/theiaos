@@ -155,7 +155,7 @@ ${theme.muted("Docs:")} ${formatDocsLink("/cli/agent", "docs.theiaos.ai/cli/agen
         `
 ${theme.heading("Examples:")}
 ${formatHelpExamples([
-  ['theiaos agents set-identity --agent main --name "TheiaOS" --emoji "🦞"', "Set name + emoji."],
+  ['theiaos agents set-identity --agent main --name "TheiaOS" --emoji "🖤"', "Set name + emoji."],
   ["theiaos agents set-identity --agent main --avatar avatars/theiaos.png", "Set avatar path."],
   [
     "theiaos agents set-identity --workspace ~/.theiaos/workspace --from-identity",

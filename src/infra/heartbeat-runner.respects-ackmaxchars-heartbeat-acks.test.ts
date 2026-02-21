@@ -159,7 +159,7 @@ describe("resolveHeartbeatIntervalMs", () => {
         lastTo: "+1555",
       });
 
-      replySpy.mockResolvedValue({ text: "HEARTBEAT_OK 🦞" });
+      replySpy.mockResolvedValue({ text: "HEARTBEAT_OK 🖤" });
       const sendWhatsApp = createMessageSendSpy();
 
       await runHeartbeatOnce({

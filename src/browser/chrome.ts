@@ -272,7 +272,7 @@ export async function launchTheiaOSChrome(
         name: profile.name,
         color: profile.color,
       });
-      log.info(`🦞 theiaos browser profile decorated (${profile.color})`);
+      log.info(`🖤 theiaos browser profile decorated (${profile.color})`);
     } catch (err) {
       log.warn(`theiaos browser profile decoration failed: ${String(err)}`);
     }
@@ -307,7 +307,7 @@ export async function launchTheiaOSChrome(
 
   const pid = proc.pid ?? -1;
   log.info(
-    `🦞 theiaos browser started (${exe.kind}) profile "${profile.name}" on 127.0.0.1:${profile.cdpPort} (pid ${pid})`,
+    `🖤 theiaos browser started (${exe.kind}) profile "${profile.name}" on 127.0.0.1:${profile.cdpPort} (pid ${pid})`,
   );
 
   return {
