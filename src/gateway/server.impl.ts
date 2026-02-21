@@ -363,6 +363,8 @@ export async function startGatewayServer(
     resolvedAuth,
     rateLimiter: authRateLimiter,
     gatewayTls,
+    brainUrl: cfgAtStart.brain?.url ? cfgAtStart.brain.url.replace(/\/brain\/wake.*$/, "") : "",
+    brainToken: cfgAtStart.brain?.token || "",
     hooksConfig: () => hooksConfig,
     pluginRegistry,
     deps,

@@ -31,6 +31,7 @@ import {
   handleControlUiHttpRequest,
   type ControlUiRootState,
 } from "./control-ui.js";
+import { type DashboardHandler, isDashboardPath, isDashboardWsPath } from "./dashboard.js";
 import { applyHookMappings } from "./hooks-mapping.js";
 import {
   extractHookToken,
@@ -450,6 +451,7 @@ export function createGatewayHttpServer(opts: {
   /** Optional rate limiter for auth brute-force protection. */
   rateLimiter?: AuthRateLimiter;
   tlsOptions?: TlsOptions;
+  dashboard?: DashboardHandler | null;
 }): HttpServer {
   const {
     canvasHost,
@@ -464,6 +466,7 @@ export function createGatewayHttpServer(opts: {
     handlePluginRequest,
     resolvedAuth,
     rateLimiter,
+    dashboard: dashboardHandler,
   } = opts;
   const httpServer: HttpServer = opts.tlsOptions
     ? createHttpsServer(opts.tlsOptions, (req, res) => {
@@ -543,6 +546,11 @@ export function createGatewayHttpServer(opts: {
           return;
         }
       }
+      if (dashboardHandler && isDashboardPath(requestPath)) {
+        if (dashboardHandler.handleHttpRequest(req, res)) {
+          return;
+        }
+      }
       if (canvasHost) {
         if (isCanvasPath(requestPath)) {
           const ok = await authorizeCanvasRequest({
@@ -605,10 +613,28 @@ export function attachGatewayUpgradeHandler(opts: {
   resolvedAuth: ResolvedGatewayAuth;
   /** Optional rate limiter for auth brute-force protection. */
   rateLimiter?: AuthRateLimiter;
+  dashboard?: DashboardHandler | null;
 }) {
-  const { httpServer, wss, canvasHost, clients, resolvedAuth, rateLimiter } = opts;
+  const {
+    httpServer,
+    wss,
+    canvasHost,
+    clients,
+    resolvedAuth,
+    rateLimiter,
+    dashboard: dashboardHandler,
+  } = opts;
   httpServer.on("upgrade", (req, socket, head) => {
     void (async () => {
+      // Dashboard WebSocket
+      if (dashboardHandler) {
+        const dUrl = new URL(req.url ?? "/", "http://localhost");
+        if (isDashboardWsPath(dUrl.pathname)) {
+          if (dashboardHandler.handleUpgrade(req, socket, head)) {
+            return;
+          }
+        }
+      }
       if (canvasHost) {
         const url = new URL(req.url ?? "/", "http://localhost");
         if (url.pathname === CANVAS_WS_PATH) {

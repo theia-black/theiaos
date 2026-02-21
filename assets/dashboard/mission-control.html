@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THEIA — Mission Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   THEIA MISSION CONTROL — The Gravitational Well
+   The view from the throne of the underworld
+   ═══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --void: #050507;
+  --panel-bg: rgba(0,0,0,0.1);
+  --border-color: rgba(255,255,255,0.04);
+  --border-hover: rgba(255,255,255,0.08);
+  --text-primary: rgba(255,255,255,0.9);
+  --text-secondary: rgba(255,255,255,0.45);
+  --text-tertiary: rgba(255,255,255,0.25);
+  --crimson: #C3131D;
+  --crimson-glow: rgba(195,19,29,0.3);
+  --crimson-dim: rgba(195,19,29,0.08);
+  --green: #00ff41;
+  --green-glow: rgba(0,255,65,0.3);
+  --amber: #ffaa00;
+  --amber-glow: rgba(255,170,0,0.3);
+  --red: #ff3333;
+  --red-glow: rgba(255,51,51,0.3);
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --radius: 20px;
+  --radius-sm: 12px;
+}
+
+html, body {
+  height: 100%; overflow: hidden;
+  background: var(--void); color: var(--text-primary);
+  font-family: var(--font-main); font-size: 14px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── WebGL Background ─────────────────────────────────────── */
+#bg-canvas {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 0; pointer-events: none;
+}
+
+/* ── Particle Overlay ─────────────────────────────────────── */
+#particle-canvas {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 1; pointer-events: none;
+}
+
+/* ── Film Grain ───────────────────────────────────────────── */
+.film-grain {
+  position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
+  z-index: 2; pointer-events: none; opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grain 0.5s steps(1) infinite;
+}
+@keyframes grain {
+  0% { transform: translate(0,0); }
+  25% { transform: translate(-5%,-5%); }
+  50% { transform: translate(5%,3%); }
+  75% { transform: translate(-3%,5%); }
+  100% { transform: translate(3%,-3%); }
+}
+
+/* ── SVG Filters ──────────────────────────────────────────── */
+.svg-filters { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ── App Shell ────────────────────────────────────────────── */
+#app {
+  position: relative; z-index: 3;
+  display: flex; flex-direction: column;
+  height: 100vh; overflow: hidden;
+}
+
+/* ── Animations ───────────────────────────────────────────── */
+@keyframes liquidFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(0, -4px, 0); }
+  66% { transform: translate3d(0, 2px, 0); }
+}
+@keyframes liquidGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(195,19,29,0.05); }
+  50% { box-shadow: 0 0 40px rgba(195,19,29,0.12); }
+}
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.7; }
+}
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gpu-accel {
+  transform: translate3d(0,0,0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* ── Glass Panel (Chromatic Aberration) ───────────────────── */
+.glass {
+  position: relative;
+  background: transparent;
+  border-radius: var(--radius);
+  box-shadow:
+    0 0 2px 1px color-mix(in oklch, white, transparent 65%) inset,
+    0 0 10px 4px color-mix(in oklch, white, transparent 85%) inset,
+    0px 4px 16px rgba(17, 17, 26, 0.05),
+    0px 8px 24px rgba(17, 17, 26, 0.05),
+    0px 16px 56px rgba(17, 17, 26, 0.05),
+    0px 4px 16px rgba(17, 17, 26, 0.05) inset,
+    0px 8px 24px rgba(17, 17, 26, 0.05) inset,
+    0px 16px 56px rgba(17, 17, 26, 0.05) inset;
+  display: flex; flex-direction: column;
+  min-height: 0; overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  animation: liquidFloat 6s ease-in-out infinite, liquidGlow 3s ease-in-out infinite;
+}
+.glass:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 2px 1px color-mix(in oklch, white, transparent 55%) inset,
+    0 0 12px 5px color-mix(in oklch, white, transparent 80%) inset,
+    0px 6px 20px rgba(17, 17, 26, 0.08),
+    0px 12px 32px rgba(17, 17, 26, 0.08),
+    0px 20px 64px rgba(17, 17, 26, 0.08),
+    0px 6px 20px rgba(17, 17, 26, 0.08) inset,
+    0px 12px 32px rgba(17, 17, 26, 0.08) inset,
+    0px 20px 64px rgba(17, 17, 26, 0.08) inset;
+}
+.glass-ca-overlay {
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  pointer-events: none; z-index: 0; opacity: 0.85;
+}
+.glass::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: inherit;
+  background: linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 40%, transparent 100%);
+  pointer-events: none; z-index: 1;
+}
+.glass-light {
+  position: absolute; width: 200px; height: 200px;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 40%, transparent 70%);
+  filter: blur(15px); transform: translate(-50%, -50%);
+  opacity: 0; transition: opacity 0.3s ease;
+  z-index: 2; mix-blend-mode: overlay;
+}
+.glass:hover .glass-light { opacity: 1; }
+.glass-header {
+  padding: 16px 20px; flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 5;
+}
+.glass-title {
+  font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-secondary); font-weight: 500;
+}
+.glass-badge {
+  font-size: 10px; font-family: var(--font-mono);
+  padding: 2px 10px; border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  color: var(--text-secondary);
+}
+.glass-body {
+  flex: 1; overflow-y: auto; padding: 12px 16px; min-height: 0;
+  position: relative; z-index: 5;
+}
+.glass-body::-webkit-scrollbar { width: 3px; }
+.glass-body::-webkit-scrollbar-track { background: transparent; }
+.glass-body::-webkit-scrollbar-thumb { background: rgba(195,19,29,0.25); border-radius: 3px; }
+
+/* ── Nav Bar ──────────────────────────────────────────────── */
+.nav-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 28px; flex-shrink: 0;
+  background: rgba(5,5,7,0.5);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  position: relative; z-index: 10;
+}
+.nav-bar::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent 5%, var(--crimson-glow) 50%, transparent 95%);
+}
+.nav-brand { display: flex; flex-direction: column; gap: 2px; }
+.nav-brand-name {
+  font-size: 13px; font-weight: 300; letter-spacing: 0.3em;
+  text-transform: uppercase; color: var(--text-primary);
+}
+.nav-brand-page {
+  font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--crimson); font-weight: 400;
+}
+.nav-brand-line {
+  width: 0; height: 1px; background: var(--crimson);
+  box-shadow: 0 0 8px var(--crimson-glow), 0 0 20px rgba(195,19,29,0.15);
+  margin-top: 4px;
+}
+.nav-tabs {
+  display: flex; gap: 4px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 14px; padding: 4px;
+  border: 1px solid rgba(255,255,255,0.04);
+  backdrop-filter: blur(12px);
+}
+.nav-tab {
+  padding: 7px 18px; border-radius: 10px; font-size: 11px;
+  letter-spacing: 0.06em; text-transform: uppercase; font-weight: 500;
+  color: var(--text-secondary); text-decoration: none;
+  transition: all 0.3s ease;
+}
+.nav-tab:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+.nav-tab.active {
+  color: var(--text-primary); background: rgba(195,19,29,0.1);
+  box-shadow: 0 0 16px rgba(195,19,29,0.08);
+}
+.nav-meta { display: flex; align-items: center; gap: 16px; }
+.nav-clock {
+  color: var(--text-secondary); font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.04em; font-weight: 300;
+}
+.nav-conn { display: flex; align-items: center; gap: 6px; font-size: 11px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-secondary); font-weight: 400;
+}
+.conn-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  transition: all 0.3s ease;
+}
+.conn-dot.ok {
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green-glow), 0 0 20px rgba(0,255,65,0.15);
+  animation: breathe 3s ease-in-out infinite;
+}
+.conn-dot.err { background: var(--red); box-shadow: 0 0 8px var(--red-glow); }
+
+/* ── Scrollable Content Area ──────────────────────────────── */
+.mc-content {
+  flex: 1; overflow-y: auto; padding: 20px 24px;
+  min-height: 0; display: flex; flex-direction: column; gap: 16px;
+}
+.mc-content::-webkit-scrollbar { width: 3px; }
+.mc-content::-webkit-scrollbar-track { background: transparent; }
+.mc-content::-webkit-scrollbar-thumb { background: rgba(195,19,29,0.2); border-radius: 3px; }
+
+/* ── Stats Row ────────────────────────────────────────────── */
+.stats-row {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  justify-content: center;
+}
+.stat-card {
+  flex: 1; min-width: 120px; max-width: 180px;
+  text-align: center; padding: 16px 12px;
+  animation: liquidFloat 6s ease-in-out infinite;
+}
+.stat-card:nth-child(2) { animation-delay: -1s; }
+.stat-card:nth-child(3) { animation-delay: -2s; }
+.stat-card:nth-child(4) { animation-delay: -3s; }
+.stat-card:nth-child(5) { animation-delay: -4s; }
+.stat-card:nth-child(6) { animation-delay: -5s; }
+.stat-number {
+  font-size: 48px; font-weight: 200; line-height: 1;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.stat-label {
+  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-secondary); font-weight: 500;
+}
+
+/* ── Grid Layouts ─────────────────────────────────────────── */
+.mc-grid-2 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}
+@media (max-width: 900px) {
+  .mc-grid-2 { grid-template-columns: 1fr; }
+}
+
+/* ── Stat Rows (inside panels) ────────────────────────────── */
+.stat-section { margin-bottom: 16px; }
+.stat-section:last-child { margin-bottom: 0; }
+.stat-section-title {
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--crimson); font-weight: 500; margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(195,19,29,0.08);
+}
+.stat-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 3px 0;
+}
+.stat-row-label {
+  font-size: 11px; color: var(--text-secondary);
+  letter-spacing: 0.02em; font-weight: 400;
+}
+.stat-row-value {
+  font-size: 11px; font-family: var(--font-mono);
+  color: var(--text-primary); font-weight: 400;
+}
+.stat-row-value.ok { color: var(--green); text-shadow: 0 0 8px var(--green-glow); }
+.stat-row-value.warn { color: var(--amber); text-shadow: 0 0 8px var(--amber-glow); }
+.stat-row-value.crit { color: var(--red); text-shadow: 0 0 8px var(--red-glow); }
+
+/* ── Progress Bars ────────────────────────────────────────── */
+.progress-wrap {
+  width: 56px; height: 3px; border-radius: 3px;
+  background: rgba(255,255,255,0.04); overflow: hidden;
+  display: inline-block; vertical-align: middle; margin-left: 8px;
+}
+.progress-fill {
+  height: 100%; border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.progress-fill.ok { background: var(--green); box-shadow: 0 0 6px var(--green-glow); }
+.progress-fill.warn { background: var(--amber); box-shadow: 0 0 6px var(--amber-glow); }
+.progress-fill.crit { background: var(--red); box-shadow: 0 0 6px var(--red-glow); }
+
+/* ── Agent Grid ───────────────────────────────────────────── */
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.agent-card {
+  position: relative;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.015);
+  border: 1px solid rgba(255,255,255,0.03);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+.agent-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  border-radius: 2px 2px 0 0;
+  transition: all 0.3s ease;
+}
+.agent-card.online::before { background: var(--green); box-shadow: 0 0 12px var(--green-glow); }
+.agent-card.errored::before, .agent-card.error::before { background: var(--red); box-shadow: 0 0 12px var(--red-glow); }
+.agent-card.launching::before { background: var(--amber); box-shadow: 0 0 12px var(--amber-glow); }
+.agent-card.stopped::before, .agent-card.stopping::before, .agent-card.unknown::before { background: rgba(255,255,255,0.1); }
+.agent-card:hover {
+  background: rgba(255,255,255,0.03);
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,0.06);
+}
+.agent-card-name {
+  font-size: 13px; font-weight: 400; color: var(--text-primary);
+  margin-bottom: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.agent-card-status {
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-weight: 400; margin-bottom: 8px;
+}
+.agent-card-status.online { color: var(--green); }
+.agent-card-status.errored, .agent-card-status.error { color: var(--red); }
+.agent-card-status.launching { color: var(--amber); }
+.agent-card-status.stopped, .agent-card-status.stopping, .agent-card-status.unknown { color: var(--text-tertiary); }
+.agent-card-metrics {
+  display: flex; gap: 12px;
+  font-size: 10px; font-family: var(--font-mono);
+  color: var(--text-secondary); font-weight: 300;
+}
+
+/* ── Channel Status ───────────────────────────────────────── */
+.channel-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+.channel-item:last-child { border-bottom: none; }
+.channel-icon { font-size: 16px; flex-shrink: 0; }
+.channel-name {
+  flex: 1; font-size: 13px; font-weight: 400; color: var(--text-primary);
+}
+.channel-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+}
+.channel-dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green-glow); }
+.channel-dot.err { background: var(--red); box-shadow: 0 0 6px var(--red-glow); }
+.channel-dot.off { background: rgba(255,255,255,0.12); }
+
+/* ── Feed ─────────────────────────────────────────────────── */
+.feed-msg {
+  display: flex; gap: 8px; padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+  font-size: 13px; animation: fadeSlideIn 0.3s ease;
+}
+.feed-time {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-tertiary); flex-shrink: 0;
+  min-width: 52px; padding-top: 2px; font-weight: 300;
+}
+.feed-icon { flex-shrink: 0; font-size: 12px; padding-top: 1px; }
+.feed-speaker { font-weight: 500; flex-shrink: 0; font-size: 12px; }
+.feed-speaker.henry { color: var(--text-primary); }
+.feed-speaker.theia { color: var(--crimson); }
+.feed-speaker.other { color: var(--text-secondary); }
+.feed-text {
+  color: rgba(255,255,255,0.55); word-break: break-word;
+  font-size: 13px; line-height: 1.45; font-weight: 300;
+}
+.feed-empty {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; color: var(--text-tertiary); font-size: 12px;
+  letter-spacing: 0.06em; font-weight: 300; padding: 24px;
+}
+
+/* ── Command Bar ──────────────────────────────────────────── */
+.cmd-bar {
+  padding: 14px 28px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 14px;
+  background: rgba(5,5,7,0.5);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border-top: 1px solid rgba(255,255,255,0.03);
+  position: relative;
+}
+.cmd-bar::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent 10%, rgba(195,19,29,0.1) 50%, transparent 90%);
+}
+.cmd-prompt {
+  font-family: var(--font-mono); font-size: 15px;
+  color: var(--crimson); flex-shrink: 0; font-weight: 300;
+  text-shadow: 0 0 10px var(--crimson-glow);
+}
+.cmd-input {
+  flex: 1; background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  font-family: var(--font-main); font-size: 13px; font-weight: 300;
+  padding: 10px 16px; outline: none;
+  transition: all 0.3s ease;
+}
+.cmd-input::placeholder { color: var(--text-tertiary); }
+.cmd-input:focus {
+  border-color: rgba(195,19,29,0.25);
+  box-shadow: 0 0 20px rgba(195,19,29,0.08), 0 0 40px rgba(195,19,29,0.04);
+  background: rgba(255,255,255,0.03);
+}
+.cmd-send {
+  background: rgba(195,19,29,0.08); border: 1px solid rgba(195,19,29,0.15);
+  color: var(--crimson); padding: 10px 22px; border-radius: var(--radius-sm);
+  font-family: var(--font-main); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  cursor: pointer; transition: all 0.25s ease;
+}
+.cmd-send:hover {
+  background: rgba(195,19,29,0.15);
+  box-shadow: 0 0 20px rgba(195,19,29,0.12);
+}
+
+/* ── Watermark ────────────────────────────────────────────── */
+.watermark {
+  position: fixed; bottom: 10px; right: 24px;
+  font-size: 10px; color: rgba(255,255,255,0.06);
+  letter-spacing: 0.12em; z-index: 4; pointer-events: none;
+  font-weight: 300;
+}
+
+/* ── Log Modal ────────────────────────────────────────────── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(5,5,7,0.85); backdrop-filter: blur(12px);
+  z-index: 100; justify-content: center; align-items: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  width: 75%; max-width: 900px; height: 70%;
+  background: rgba(10,10,14,0.9);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: var(--radius);
+  box-shadow:
+    0 0 2px 1px color-mix(in oklch, white, transparent 65%) inset,
+    0 0 10px 4px color-mix(in oklch, white, transparent 85%) inset,
+    0px 8px 60px rgba(0,0,0,0.5);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.modal-title {
+  font-size: 12px; font-weight: 500; letter-spacing: 0.06em;
+  color: var(--text-primary); text-transform: uppercase;
+}
+.modal-close {
+  background: none; border: 1px solid rgba(255,255,255,0.06);
+  color: var(--text-secondary); border-radius: 8px;
+  padding: 5px 14px; font-size: 11px; cursor: pointer;
+  font-family: var(--font-main); transition: all 0.2s ease;
+}
+.modal-close:hover { border-color: var(--crimson); color: var(--crimson); }
+.modal-body {
+  flex: 1; overflow-y: auto; padding: 16px 20px;
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--text-secondary); white-space: pre-wrap; line-height: 1.6;
+  font-weight: 300;
+}
+.modal-body::-webkit-scrollbar { width: 3px; }
+.modal-body::-webkit-scrollbar-thumb { background: rgba(195,19,29,0.25); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ── SVG Chromatic Aberration Filters ────────────────────── -->
+<svg class="svg-filters" xmlns="http://www.w3.org/2000/svg">
+  <defs></defs>
+</svg>
+
+<canvas id="bg-canvas"></canvas>
+<canvas id="particle-canvas"></canvas>
+<div class="film-grain"></div>
+
+<div id="app">
+  <!-- ── NAV BAR ──────────────────────────────────────────── -->
+  <nav class="nav-bar">
+    <div class="nav-brand">
+      <div class="nav-brand-name">THEIA</div>
+      <div class="nav-brand-page">Mission Control</div>
+      <div class="nav-brand-line" id="brand-line"></div>
+    </div>
+    <div class="nav-tabs">
+      <a href="/dashboard/" class="nav-tab">Dashboard</a>
+      <a href="/dashboard/mission-control" class="nav-tab active">Mission Control</a>
+      <a href="/dashboard/fry-room" class="nav-tab">Fry Room</a>
+    </div>
+    <div class="nav-meta">
+      <span class="nav-clock" id="clock">00:00:00 UTC</span>
+      <div class="nav-conn" id="conn-status">
+        <span class="conn-dot err" id="conn-dot"></span>
+        <span id="conn-label">Offline</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── SCROLLABLE CONTENT ───────────────────────────────── -->
+  <div class="mc-content" id="mc-content">
+
+    <!-- Stats Row -->
+    <div class="stats-row" id="stats-row">
+      <div class="stat-card gpu-accel">
+        <div class="stat-number" id="stat-agents">0</div>
+        <div class="stat-label">Agents</div>
+      </div>
+      <div class="stat-card gpu-accel">
+        <div class="stat-number" id="stat-online">0</div>
+        <div class="stat-label">Online</div>
+      </div>
+      <div class="stat-card gpu-accel">
+        <div class="stat-number" id="stat-events">0</div>
+        <div class="stat-label">Events</div>
+      </div>
+      <div class="stat-card gpu-accel">
+        <div class="stat-number" id="stat-embed">0</div>
+        <div class="stat-label">Embed</div>
+      </div>
+      <div class="stat-card gpu-accel">
+        <div class="stat-number" id="stat-edges">0</div>
+        <div class="stat-label">Edges</div>
+      </div>
+      <div class="stat-card gpu-accel">
+        <div class="stat-number" id="stat-memory">0</div>
+        <div class="stat-label">Memory</div>
+      </div>
+    </div>
+
+    <!-- System Overview + Neural Activity -->
+    <div class="mc-grid-2">
+      <div class="glass gpu-accel" id="panel-system">
+        <div class="glass-ca-overlay"></div>
+        <div class="glass-light"></div>
+        <div class="glass-header">
+          <span class="glass-title">System Overview</span>
+        </div>
+        <div class="glass-body" id="system-body">
+          <div class="feed-empty">Awaiting telemetry…</div>
+        </div>
+      </div>
+      <div class="glass gpu-accel" id="panel-neural">
+        <div class="glass-ca-overlay"></div>
+        <div class="glass-light"></div>
+        <div class="glass-header">
+          <span class="glass-title">Neural Activity</span>
+        </div>
+        <div class="glass-body" id="neural-body">
+          <div class="feed-empty">Connecting to neural…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent Grid -->
+    <div class="glass gpu-accel" id="panel-agents">
+      <div class="glass-ca-overlay"></div>
+      <div class="glass-light"></div>
+      <div class="glass-header">
+        <span class="glass-title">Agent Grid</span>
+        <span class="glass-badge" id="agent-count-badge">0</span>
+      </div>
+      <div class="glass-body">
+        <div class="agent-grid" id="agent-grid">
+          <div class="feed-empty" style="grid-column:1/-1">No agents detected</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Channel Status + Live Feed -->
+    <div class="mc-grid-2">
+      <div class="glass gpu-accel" id="panel-channels">
+        <div class="glass-ca-overlay"></div>
+        <div class="glass-light"></div>
+        <div class="glass-header">
+          <span class="glass-title">Channel Status</span>
+        </div>
+        <div class="glass-body" id="channels-body">
+          <div class="feed-empty">Scanning frequencies…</div>
+        </div>
+      </div>
+      <div class="glass gpu-accel" id="panel-feed" style="min-height:280px">
+        <div class="glass-ca-overlay"></div>
+        <div class="glass-light"></div>
+        <div class="glass-header">
+          <span class="glass-title">Live Feed</span>
+          <span class="glass-badge" id="feed-count">0</span>
+        </div>
+        <div class="glass-body" id="feed-list">
+          <div class="feed-empty">Monitoring all frequencies…</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── COMMAND BAR ──────────────────────────────────────── -->
+  <div class="cmd-bar">
+    <span class="cmd-prompt">&gt;</span>
+    <input type="text" class="cmd-input" id="cmd-input" placeholder="Directive for Theia…" autocomplete="off" />
+    <button class="cmd-send" id="cmd-send">Send</button>
+  </div>
+</div>
+
+<div class="watermark">THEIA AI SYSTEMS</div>
+
+<!-- ── LOG MODAL ──────────────────────────────────────────── -->
+<div class="modal-overlay" id="log-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="log-modal-title">Logs</span>
+      <button class="modal-close" onclick="closeLogModal()">Close</button>
+    </div>
+    <div class="modal-body" id="log-modal-body"></div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   CHROMATIC ABERRATION GLASS SYSTEM
+   Exact copy from Dashboard — SVG displacement filter pipeline
+   ═══════════════════════════════════════════════════════════════ */
+const GlassSystem = {
+  panels: [],
+  filterDefs: document.querySelector('.svg-filters defs'),
+  counter: 0,
+  config: {
+    backgroundOpacity: 0,
+    blur: 16,
+    brightness: 8,
+    opacity: 0.75,
+    saturation: 1.2,
+    distortionScale: -180,
+    borderWidth: 0.07,
+    borderRadius: 20,
+    mixBlendMode: 'difference',
+    redOffset: 0,
+    greenOffset: 10,
+    blueOffset: 20,
+    xChannel: 'R',
+    yChannel: 'G',
+  },
+  generateDisplacementSVG(width, height, id) {
+    const c = this.config;
+    const edgeSize = Math.min(width, height) * (c.borderWidth * 0.5);
+    return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="rg-${id}" x1="100%" y1="0%" x2="0%" y2="0%">
+          <stop offset="0%" stop-color="#0000"/>
+          <stop offset="100%" stop-color="red"/>
+        </linearGradient>
+        <linearGradient id="bg-${id}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#0000"/>
+          <stop offset="100%" stop-color="blue"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="${width}" height="${height}" fill="black"/>
+      <rect x="0" y="0" width="${width}" height="${height}" rx="${c.borderRadius}" fill="url(#rg-${id})"/>
+      <rect x="0" y="0" width="${width}" height="${height}" rx="${c.borderRadius}" fill="url(#bg-${id})" style="mix-blend-mode:${c.mixBlendMode}"/>
+      <rect x="${edgeSize}" y="${edgeSize}" width="${width - edgeSize * 2}" height="${height - edgeSize * 2}" rx="${c.borderRadius}" fill="hsl(0 0% ${c.brightness}% / ${c.opacity})" style="filter:blur(${c.blur}px)"/>
+    </svg>`;
+  },
+  createFilter(id) {
+    const c = this.config;
+    const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+    filter.setAttribute('id', `glass-ca-${id}`);
+    filter.setAttribute('colorInterpolationFilters', 'sRGB');
+    filter.setAttribute('x', '0%'); filter.setAttribute('y', '0%');
+    filter.setAttribute('width', '100%'); filter.setAttribute('height', '100%');
+    filter.innerHTML = `
+      <feImage x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="map" data-feimage="true"/>
+      <feDisplacementMap in="SourceGraphic" in2="map" xChannelSelector="${c.xChannel}" yChannelSelector="${c.yChannel}" scale="${c.distortionScale + c.redOffset}" result="dispRed"/>
+      <feColorMatrix in="dispRed" type="matrix" values="1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0" result="red"/>
+      <feDisplacementMap in="SourceGraphic" in2="map" xChannelSelector="${c.xChannel}" yChannelSelector="${c.yChannel}" scale="${c.distortionScale + c.greenOffset}" result="dispGreen"/>
+      <feColorMatrix in="dispGreen" type="matrix" values="0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 0" result="green"/>
+      <feDisplacementMap in="SourceGraphic" in2="map" xChannelSelector="${c.xChannel}" yChannelSelector="${c.yChannel}" scale="${c.distortionScale + c.blueOffset}" result="dispBlue"/>
+      <feColorMatrix in="dispBlue" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 1 0" result="blue"/>
+      <feBlend in="red" in2="green" mode="screen" result="rg"/>
+      <feBlend in="rg" in2="blue" mode="screen" result="output"/>
+      <feGaussianBlur in="output" stdDeviation="0.7"/>`;
+    this.filterDefs.appendChild(filter);
+    return filter;
+  },
+  updateFilterImage(filter, width, height, id) {
+    const svgContent = this.generateDisplacementSVG(width, height, id);
+    const dataUri = 'data:image/svg+xml,' + encodeURIComponent(svgContent);
+    const feImage = filter.querySelector('[data-feimage]');
+    if (feImage) feImage.setAttribute('href', dataUri);
+  },
+  init() {
+    document.querySelectorAll('.glass').forEach(panel => {
+      const id = this.counter++;
+      const filter = this.createFilter(id);
+      const overlay = panel.querySelector('.glass-ca-overlay');
+      if (overlay) {
+        overlay.style.filter = `url(#glass-ca-${id})`;
+        overlay.style.background = `rgba(0,0,0,${this.config.backgroundOpacity})`;
+      }
+      const updateSize = () => {
+        const rect = panel.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          this.updateFilterImage(filter, rect.width, rect.height, id);
+        }
+      };
+      const ro = new ResizeObserver(() => setTimeout(updateSize, 0));
+      ro.observe(panel);
+      setTimeout(updateSize, 100);
+      this.panels.push({ panel, filter, id, overlay, ro });
+    });
+  }
+};
+
+/* ── Cursor-Tracking Light Spots ──────────────────────────── */
+document.querySelectorAll('.glass').forEach(panel => {
+  const light = panel.querySelector('.glass-light');
+  if (!light) return;
+  panel.addEventListener('mousemove', e => {
+    const rect = panel.getBoundingClientRect();
+    light.style.left = (e.clientX - rect.left) + 'px';
+    light.style.top = (e.clientY - rect.top) + 'px';
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   WEBGL — THE GRAVITATIONAL WELL
+   Original shader: accretion disk, gravitational lensing,
+   vein structures, heartbeat pulse, breathing center
+   ═══════════════════════════════════════════════════════════════ */
+(function initBackground() {
+  const canvas = document.getElementById('bg-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+
+  let mouseX = 0.5, mouseY = 0.5;
+  document.addEventListener('mousemove', e => {
+    mouseX = e.clientX / window.innerWidth;
+    mouseY = 1.0 - e.clientY / window.innerHeight;
+  });
+
+  const fragmentShader = `
+    precision highp float;
+
+    uniform float u_time;
+    uniform vec2 u_resolution;
+    uniform vec2 u_mouse;
+
+    /* ── Hashing ─────────────────────────────────────────── */
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453123);
+    }
+
+    /* ── Value noise ─────────────────────────────────────── */
+    float vnoise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      return mix(
+        mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+        mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
+        f.y
+      );
+    }
+
+    /* ── FBM with domain rotation ────────────────────────── */
+    float fbm(vec2 p) {
+      float v = 0.0, a = 0.5;
+      mat2 m = mat2(0.866, 0.5, -0.5, 0.866);
+      for (int i = 0; i < 6; i++) {
+        v += a * vnoise(p);
+        p = m * p * 2.02;
+        a *= 0.49;
+      }
+      return v;
+    }
+
+    void main() {
+      vec2 fragCoord = gl_FragCoord.xy;
+      vec2 uv = fragCoord / u_resolution;
+      float aspect = u_resolution.x / u_resolution.y;
+
+      /* Aspect-corrected coords centered at origin */
+      vec2 p = (uv - 0.5) * vec2(aspect, 1.0);
+
+      /* Gravitational center: bottom-center */
+      vec2 gCenter = vec2(0.0, -0.2);
+
+      /* Breathing oscillation: 0.5% over 15s */
+      float breathe = 1.0 + 0.005 * sin(u_time * 0.41888);
+
+      /* Vector to center */
+      vec2 toC = p - gCenter;
+      float dist = length(toC);
+      vec2 dir = toC / (dist + 0.001);
+
+      /* Gravitational lensing — UV warp toward center */
+      float lensStr = 0.12 * breathe / (dist * dist + 0.04);
+      vec2 lensed = p - dir * lensStr;
+
+      /* Mouse secondary gravity */
+      vec2 mWorld = (u_mouse - 0.5) * vec2(aspect, 1.0);
+      vec2 toM = lensed - mWorld;
+      float mDist = length(toM);
+      lensed -= (toM / (mDist + 0.001)) * 0.015 / (mDist * mDist + 0.1);
+
+      /* ── BASE VOID ────────────────────────────────────── */
+      vec3 color = vec3(0.014, 0.014, 0.02);
+
+      /* ── VEIN STRUCTURES (barely visible) ──────────────── */
+      vec2 vUV = lensed * 2.5;
+      float w1 = fbm(vUV + u_time * 0.01);
+      float w2 = fbm(vUV + vec2(5.2, 1.3) + u_time * 0.008);
+      float veins = fbm(vUV + vec2(w1, w2) * 0.8);
+
+      /* Thin vein lines at noise threshold crossings */
+      float vEdge = smoothstep(0.012, 0.0, abs(veins - 0.5));
+      color += vec3(0.025, 0.006, 0.018) * vEdge * 0.35;
+
+      float vEdge2 = smoothstep(0.015, 0.0, abs(w1 - 0.48));
+      color += vec3(0.008, 0.004, 0.025) * vEdge2 * 0.25;
+
+      /* ── ACCRETION DISK ────────────────────────────────── */
+      vec2 dPos = lensed - gCenter;
+      vec2 dFlat = dPos * vec2(1.0, 3.2);
+      float dR = length(dFlat);
+      float dAngle = atan(dFlat.y, dFlat.x) + u_time * 0.07;
+
+      /* Annular ring mask */
+      float innerR = 0.06, outerR = 0.38;
+      float ring = smoothstep(innerR, innerR + 0.04, dR) * smoothstep(outerR, outerR - 0.12, dR);
+
+      /* Layered FBM disk texture */
+      vec2 dUV = vec2(dAngle * 1.8, dR * 10.0);
+      float dn1 = fbm(dUV + u_time * 0.035);
+      float dn2 = fbm(dUV * 1.3 + vec2(2.7, 0.0) - u_time * 0.02);
+      float dn3 = fbm(vec2(dAngle * 0.5, dR * 20.0) + u_time * 0.015);
+
+      /* Muted disk colors — light through smoke */
+      vec3 diskCol = vec3(0.0);
+      diskCol += vec3(0.12, 0.018, 0.028) * dn1;
+      diskCol += vec3(0.015, 0.01, 0.055) * dn2;
+      diskCol += vec3(0.09, 0.045, 0.008) * dn3 * smoothstep(0.2, 0.08, dR);
+      diskCol *= 0.6 + 0.4 * dn1;
+
+      color += diskCol * ring;
+
+      /* Event horizon edge glow */
+      color += vec3(0.03, 0.008, 0.012) * (0.02 / (dR + 0.02)) * 0.3;
+
+      /* ── HEARTBEAT (40 BPM = 4.189 rad/s) ─────────────── */
+      float hb = pow(max(0.0, sin(u_time * 4.189)), 30.0);
+      float hbFall = 1.0 / (1.0 + dist * dist * 15.0);
+      color += vec3(0.035, 0.008, 0.014) * hb * hbFall * 0.6;
+
+      /* ── HEAVY RADIAL VIGNETTE ─────────────────────────── */
+      float vigD = length(uv - 0.5);
+      color *= 1.0 - smoothstep(0.1, 0.85, vigD);
+
+      /* ── sRGB GAMMA ────────────────────────────────────── */
+      color = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
+
+      /* ── DITHERING ─────────────────────────────────────── */
+      color += (hash(fragCoord + fract(u_time * 100.0)) - 0.5) / 255.0;
+
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `;
+
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      u_time: { value: 0 },
+      u_resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+      u_mouse: { value: new THREE.Vector2(0.5, 0.5) }
+    },
+    vertexShader: `void main() { gl_Position = vec4(position, 1.0); }`,
+    fragmentShader
+  });
+
+  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
+
+  window.addEventListener('resize', () => {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    material.uniforms.u_resolution.value.set(window.innerWidth, window.innerHeight);
+  });
+
+  const t0 = performance.now();
+  (function animate() {
+    material.uniforms.u_time.value = (performance.now() - t0) * 0.001;
+    material.uniforms.u_mouse.value.set(mouseX, mouseY);
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  })();
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   PARTICLE FIELD — Dust falling into the gravitational well
+   800-1200 dim points drifting inward. Some in orbits.
+   ═══════════════════════════════════════════════════════════════ */
+(function initParticles() {
+  const canvas = document.getElementById('particle-canvas');
+  const ctx = canvas.getContext('2d');
+  const COUNT = 1000;
+  let W, H;
+  const particles = [];
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  /* Gravitational center in canvas coords (bottom-center) */
+  function cx() { return W * 0.5; }
+  function cy() { return H * 0.7; }
+
+  for (let i = 0; i < COUNT; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const r = 0.15 + Math.random() * 0.85;
+    const maxDim = Math.max(W, H);
+    particles.push({
+      x: cx() + Math.cos(angle) * r * maxDim * 0.6,
+      y: cy() + Math.sin(angle) * r * maxDim * 0.6,
+      orbiting: Math.random() < 0.3,
+      speed: 0.08 + Math.random() * 0.2,
+      size: 0.3 + Math.random() * 0.7,
+      alpha: 0.04 + Math.random() * 0.1,
+      hue: Math.random() < 0.5 ? (0 + Math.random() * 10) : (220 + Math.random() * 30),
+      sat: 20 + Math.random() * 40,
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const gcx = cx(), gcy = cy();
+    const t = performance.now() * 0.001;
+
+    for (const p of particles) {
+      const dx = gcx - p.x;
+      const dy = gcy - p.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const nx = dx / dist;
+      const ny = dy / dist;
+
+      if (p.orbiting) {
+        /* Tangential drift + slight inward pull */
+        p.x += (-ny * p.speed * 0.4 + nx * 0.03) * 0.6;
+        p.y += (nx * p.speed * 0.4 + ny * 0.03) * 0.6;
+      } else {
+        /* Direct inward drift */
+        p.x += nx * p.speed * 0.25;
+        p.y += ny * p.speed * 0.25;
+      }
+
+      /* Respawn at edge when reaching center */
+      if (dist < 15) {
+        const a = Math.random() * Math.PI * 2;
+        const maxDim = Math.max(W, H);
+        p.x = gcx + Math.cos(a) * maxDim * 0.55;
+        p.y = gcy + Math.sin(a) * maxDim * 0.55;
+      }
+
+      /* Respawn if offscreen */
+      if (p.x < -20 || p.x > W + 20 || p.y < -20 || p.y > H + 20) {
+        const a = Math.random() * Math.PI * 2;
+        p.x = gcx + Math.cos(a) * Math.max(W, H) * 0.5;
+        p.y = gcy + Math.sin(a) * Math.max(W, H) * 0.5;
+      }
+
+      /* Flicker */
+      const flicker = 0.7 + Math.sin(t * 0.8 + p.phase) * 0.3;
+
+      ctx.globalAlpha = p.alpha * flicker;
+      ctx.fillStyle = `hsl(${p.hue}, ${p.sat}%, 55%)`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   GSAP ENTRANCE ANIMATIONS
+   ═══════════════════════════════════════════════════════════════ */
+gsap.set('#app', { opacity: 0 });
+gsap.to('#app', { opacity: 1, duration: 1, ease: 'power2.out', delay: 0.15 });
+gsap.from('.nav-bar', { y: -20, opacity: 0, duration: 0.7, ease: 'power3.out', delay: 0.3 });
+gsap.to('#brand-line', { width: 48, duration: 1.2, ease: 'power2.out', delay: 0.8 });
+
+gsap.from('.stats-row', { y: 15, opacity: 0, duration: 0.7, ease: 'power3.out', delay: 0.45 });
+gsap.from('#panel-system', { x: -20, opacity: 0, duration: 0.7, ease: 'power3.out', delay: 0.55 });
+gsap.from('#panel-neural', { x: 20, opacity: 0, duration: 0.7, ease: 'power3.out', delay: 0.65 });
+gsap.from('#panel-agents', { y: 20, opacity: 0, duration: 0.7, ease: 'power3.out', delay: 0.75 });
+gsap.from('#panel-channels', { x: -20, opacity: 0, duration: 0.7, ease: 'power3.out', delay: 0.85 });
+gsap.from('#panel-feed', { x: 20, opacity: 0, duration: 0.7, ease: 'power3.out', delay: 0.95 });
+gsap.from('.cmd-bar', { y: 20, opacity: 0, duration: 0.7, ease: 'power3.out', delay: 1.0 });
+
+/* ═══════════════════════════════════════════════════════════════
+   STATE & WEBSOCKET
+   ═══════════════════════════════════════════════════════════════ */
+const state = {
+  services: [], system: {}, neural: {}, brain: {}, recall: {},
+  cloudBrain: {}, cloudRecent: [], feed: [], disk: {},
+  connected: false,
+};
+const MAX_FEED = 150;
+let feedCount = 0;
+let ws, reconnTimer;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/dashboard/ws`);
+  ws.onopen = () => { state.connected = true; renderConn(); };
+  ws.onclose = () => { state.connected = false; renderConn(); reconnTimer = setTimeout(connect, 3000); };
+  ws.onerror = () => ws.close();
+  ws.onmessage = (ev) => {
+    try {
+      const { type, data } = JSON.parse(ev.data);
+      switch (type) {
+        case 'services':
+          state.services = data.services || [];
+          state.system = data.system || {};
+          renderStats(); renderSystem(); renderAgentGrid(); renderChannels();
+          break;
+        case 'neural': state.neural = data; renderNeural(); break;
+        case 'brain': state.brain = data; renderNeural(); break;
+        case 'recall': state.recall = data; renderNeural(); break;
+        case 'cloud-brain': state.cloudBrain = data; renderStats(); renderNeural(); break;
+        case 'cloud-recent': state.cloudRecent = Array.isArray(data) ? data : []; break;
+        case 'feed': addFeed(data); break;
+        case 'command-ack':
+          addFeed({ channel: 'dashboard', speaker: 'system', text: '✓ Command dispatched', ts: Date.now() });
+          break;
+      }
+    } catch {}
+  };
+}
+
+function sendCommand(text) {
+  if (!text.trim() || !ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify({ type: 'command', text: text.trim() }));
+  addFeed({ channel: 'dashboard', speaker: 'Henry', text: text.trim(), ts: Date.now() });
+  document.getElementById('cmd-input').value = '';
+}
+
+/* ── Disk API polling ─────────────────────────────────────── */
+function fetchDisk() {
+  fetch('/api/disk').then(r => r.ok ? r.json() : null).then(d => {
+    if (d) { state.disk = d; renderSystem(); }
+  }).catch(() => {});
+}
+setInterval(fetchDisk, 30000);
+fetchDisk();
+
+/* ═══════════════════════════════════════════════════════════════
+   RENDERERS
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Connection Status ────────────────────────────────────── */
+function renderConn() {
+  const dot = document.getElementById('conn-dot');
+  const label = document.getElementById('conn-label');
+  if (state.connected) {
+    dot.className = 'conn-dot ok'; label.textContent = 'Online';
+  } else {
+    dot.className = 'conn-dot err'; label.textContent = 'Offline';
+  }
+}
+
+/* ── Hero Stats with GSAP Count-Up ────────────────────────── */
+const statTargets = { agents: 0, online: 0, events: 0, embed: 0, edges: 0, memory: 0 };
+
+function animateStatTo(id, target) {
+  const el = document.getElementById(`stat-${id}`);
+  if (!el) return;
+  const key = id;
+  if (statTargets[key] === target) return;
+  statTargets[key] = target;
+  const current = parseInt(el.textContent.replace(/,/g, '')) || 0;
+  gsap.to({ val: current }, {
+    val: target,
+    duration: 1.2,
+    ease: 'power3.out',
+    snap: { val: 1 },
+    onUpdate: function () {
+      el.textContent = Math.round(this.targets()[0].val).toLocaleString();
+    }
+  });
+}
+
+function renderStats() {
+  const svcs = state.services;
+  const cb = state.cloudBrain;
+  animateStatTo('agents', svcs.length);
+  animateStatTo('online', svcs.filter(s => s.status === 'online').length);
+  animateStatTo('events', cb.total_events || cb.events_count || 0);
+  animateStatTo('embed', cb.total_embeddings || cb.embeddings_count || 0);
+  animateStatTo('edges', cb.total_edges || cb.edges_count || 0);
+  animateStatTo('memory', cb.total_user_facts || cb.user_facts_count || 0);
+}
+
+/* ── System Overview ──────────────────────────────────────── */
+function renderSystem() {
+  const el = document.getElementById('system-body');
+  const sys = state.system;
+  const disk = state.disk;
+
+  const cpuPct = sys.cpuPercent ?? 0;
+  const memPct = sys.memUsedPercent ?? 0;
+  const cpuCls = cpuPct > 90 ? 'crit' : cpuPct > 70 ? 'warn' : 'ok';
+  const memCls = memPct > 90 ? 'crit' : memPct > 70 ? 'warn' : 'ok';
+
+  let html = `<div class="stat-section">
+    <div class="stat-section-title">Host</div>
+    ${sr('CPU', `<span class="stat-row-value ${cpuCls}">${cpuPct}%</span><span class="progress-wrap"><span class="progress-fill ${cpuCls}" style="width:${cpuPct}%"></span></span>`, true)}
+    ${sr('Memory', `<span class="stat-row-value ${memCls}">${memPct}%</span><span class="progress-wrap"><span class="progress-fill ${memCls}" style="width:${memPct}%"></span></span>`, true)}
+    ${sr('Free', sys.memFree ? fmtBytes(sys.memFree) : '—')}
+    ${sr('Load', sys.loadAvg ? sys.loadAvg.map(l => l.toFixed(1)).join(' / ') : '—')}
+    ${sr('Uptime', sys.uptime ? fmtUptime(sys.uptime) : '—')}
+  </div>`;
+
+  if (disk && (disk.percent !== undefined || disk.used !== undefined)) {
+    const dPct = disk.percent ?? (disk.used && disk.total ? Math.round(disk.used / disk.total * 100) : 0);
+    const dCls = dPct > 90 ? 'crit' : dPct > 70 ? 'warn' : 'ok';
+    html += `<div class="stat-section">
+      <div class="stat-section-title">Disk</div>
+      ${sr('Usage', `<span class="stat-row-value ${dCls}">${dPct}%</span><span class="progress-wrap"><span class="progress-fill ${dCls}" style="width:${dPct}%"></span></span>`, true)}
+      ${sr('Total', disk.total ? fmtBytes(disk.total) : '—')}
+      ${sr('Available', disk.available ? fmtBytes(disk.available) : '—')}
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+/* ── Neural Activity ──────────────────────────────────────── */
+function renderNeural() {
+  const el = document.getElementById('neural-body');
+  const cb = state.cloudBrain;
+  const n = state.neural;
+  const b = state.brain;
+  const r = state.recall;
+
+  let html = `<div class="stat-section">
+    <div class="stat-section-title">Cloud Brain</div>
+    ${sr('Events', fmtNum(cb.total_events || cb.events_count))}
+    ${sr('Embeddings', fmtNum(cb.total_embeddings || cb.embeddings_count))}
+    ${sr('Edges', fmtNum(cb.total_edges || cb.edges_count))}
+    ${sr('User Facts', fmtNum(cb.total_user_facts || cb.user_facts_count))}
+    ${sr('Working Set', fmtNum(cb.working_set_count))}
+  </div>`;
+
+  html += `<div class="stat-section">
+    <div class="stat-section-title">Brain State</div>
+    ${sr('Emotion', b.current_emotion ?? '—')}
+    ${sr('Topic', b.active_topic ?? '—')}
+    ${sr('Channel', b.last_interaction?.channel ?? '—')}
+  </div>`;
+
+  html += `<div class="stat-section">
+    <div class="stat-section-title">Neural Signal</div>
+    ${sr('Connections', n.connections_active ?? n.connections_total ?? '—')}
+    ${sr('Cache Hits', fmtNum(n.cache_hits))}
+    ${sr('Latency', n.avg_latency_ms !== undefined ? n.avg_latency_ms + 'ms' : '—')}
+  </div>`;
+
+  html += `<div class="stat-section">
+    <div class="stat-section-title">Total Recall</div>
+    ${sr('Messages', fmtNum(r.total_messages))}
+    ${sr('Pending', r.pending_embedding ?? '—')}
+    ${sr('Rate/hr', r.storage_rate_per_hour ?? '—')}
+  </div>`;
+
+  el.innerHTML = html;
+}
+
+/* ── Agent Grid ───────────────────────────────────────────── */
+function renderAgentGrid() {
+  const grid = document.getElementById('agent-grid');
+  const svcs = state.services;
+  document.getElementById('agent-count-badge').textContent = svcs.length;
+
+  if (!svcs.length) {
+    grid.innerHTML = '<div class="feed-empty" style="grid-column:1/-1">No agents detected</div>';
+    return;
+  }
+
+  const html = svcs.map(s => {
+    const mem = s.memory ? (s.memory / 1048576).toFixed(0) + 'MB' : '—';
+    const cpu = s.cpu !== undefined ? s.cpu + '%' : '—';
+    return `<div class="agent-card ${s.status}" onclick="viewLogs('${esc(s.name)}')">
+      <div class="agent-card-name">${esc(s.name)}</div>
+      <div class="agent-card-status ${s.status}">${s.status}</div>
+      <div class="agent-card-metrics">
+        <span>${cpu}</span>
+        <span>${mem}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const newHash = hashStr(html);
+  if (grid.dataset.hash !== String(newHash)) {
+    grid.innerHTML = html;
+    grid.dataset.hash = newHash;
+  }
+}
+
+/* ── Channel Status ───────────────────────────────────────── */
+const channelDefs = [
+  { name: 'iMessage', icon: '🍏', keys: ['imessage'] },
+  { name: 'Discord', icon: '🎮', keys: ['discord'] },
+  { name: 'Telegram', icon: '✈️', keys: ['telegram'] },
+  { name: 'Webchat', icon: '🌐', keys: ['webchat'] },
+];
+
+function renderChannels() {
+  const el = document.getElementById('channels-body');
+  const svcs = state.services;
+
+  const html = channelDefs.map(ch => {
+    const svc = svcs.find(s => ch.keys.some(k => s.name.toLowerCase().includes(k)));
+    const status = svc ? svc.status : 'unknown';
+    const dotCls = status === 'online' ? 'ok' : (status === 'errored' || status === 'error') ? 'err' : 'off';
+    return `<div class="channel-item">
+      <span class="channel-icon">${ch.icon}</span>
+      <span class="channel-name">${ch.name}</span>
+      <span class="channel-dot ${dotCls}"></span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = html;
+}
+
+/* ── Live Feed ────────────────────────────────────────────── */
+function addFeed(msg) {
+  if (!msg) return;
+  if (!msg.text && msg.content) msg.text = msg.content;
+  if (!msg.speaker && msg.role) msg.speaker = msg.role === 'user' ? 'henry' : 'theia';
+  state.feed.push(msg);
+  if (state.feed.length > MAX_FEED) state.feed.shift();
+  feedCount++;
+  document.getElementById('feed-count').textContent = feedCount;
+  renderFeedItem(msg);
+}
+
+function renderFeedItem(msg) {
+  const el = document.getElementById('feed-list');
+  const empty = el.querySelector('.feed-empty');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = 'feed-msg';
+  const ts = msg.ts || msg.timestamp;
+  const d = ts ? new Date(ts) : null;
+  const time = (d && !isNaN(d.getTime()))
+    ? d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' }) : '';
+  const channel = (msg.channel || 'system').toLowerCase().replace(/\s+/g, '-');
+  const speaker = msg.speaker || msg.from || 'system';
+  const spkClass = speaker.toLowerCase().includes('henry') ? 'henry'
+    : speaker.toLowerCase().includes('theia') ? 'theia' : 'other';
+  const icons = { imessage:'🍏', discord:'🎮', telegram:'✈️', webchat:'🌐', 'dashboard':'⚔️' };
+  const icon = icons[channel] || '📡';
+
+  div.innerHTML = `
+    <span class="feed-time">${time}</span>
+    <span class="feed-icon">${icon}</span>
+    <span class="feed-speaker ${spkClass}">${esc(speaker)}</span>
+    <span class="feed-text">${esc(msg.text || '')}</span>`;
+  el.appendChild(div);
+  while (el.children.length > MAX_FEED) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ── Log Modal ────────────────────────────────────────────── */
+function viewLogs(name) {
+  const modal = document.getElementById('log-modal');
+  document.getElementById('log-modal-title').textContent = `Logs — ${name}`;
+  document.getElementById('log-modal-body').textContent = 'Fetching logs…';
+  modal.classList.add('open');
+  fetch(`/logs/${name}`).then(r => r.ok ? r.text() : 'Unavailable').then(t => {
+    document.getElementById('log-modal-body').textContent = t || 'No logs';
+  }).catch(() => {
+    document.getElementById('log-modal-body').textContent = 'Unable to fetch logs';
+  });
+}
+function closeLogModal() { document.getElementById('log-modal').classList.remove('open'); }
+document.getElementById('log-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('log-modal')) closeLogModal();
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════════ */
+function sr(label, value, raw) {
+  return `<div class="stat-row"><span class="stat-row-label">${label}</span>${raw ? value : `<span class="stat-row-value">${value}</span>`}</div>`;
+}
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function fmtBytes(b) {
+  if (b > 1073741824) return (b / 1073741824).toFixed(1) + ' GB';
+  if (b > 1048576) return (b / 1048576).toFixed(0) + ' MB';
+  return (b / 1024).toFixed(0) + ' KB';
+}
+function fmtUptime(s) {
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
+}
+function fmtNum(v) {
+  if (v === undefined || v === null) return '—';
+  const n = Number(v);
+  return isNaN(n) ? String(v) : n.toLocaleString();
+}
+function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i) | 0; return h; }
+
+/* ── Clock ────────────────────────────────────────────────── */
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'UTC' }) + ' UTC';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* ── Command Input ────────────────────────────────────────── */
+document.getElementById('cmd-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendCommand(e.target.value);
+});
+document.getElementById('cmd-send').addEventListener('click', () => {
+  sendCommand(document.getElementById('cmd-input').value);
+});
+
+/* ── Boot ─────────────────────────────────────────────────── */
+GlassSystem.init();
+connect();
+</script>
+</body>
+</html>

@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THEIA — Fry Room</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   THEIA FRY ROOM — The Obsidian Furnace
+   The arena where underperforming agents are publicly judged
+   You are standing on a glass floor over a furnace
+   ═══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --void: #050507;
+  --panel-bg: rgba(0,0,0,0.1);
+  --border-color: rgba(255,255,255,0.04);
+  --border-hover: rgba(255,255,255,0.08);
+  --text-primary: rgba(255,255,255,0.9);
+  --text-secondary: rgba(255,255,255,0.45);
+  --text-tertiary: rgba(255,255,255,0.25);
+  --crimson: #C3131D;
+  --crimson-glow: rgba(195,19,29,0.3);
+  --crimson-dim: rgba(195,19,29,0.08);
+  --green: #00ff41;
+  --green-glow: rgba(0,255,65,0.3);
+  --amber: #ffaa00;
+  --amber-glow: rgba(255,170,0,0.3);
+  --red: #ff3333;
+  --red-glow: rgba(255,51,51,0.3);
+  --red-dim: rgba(255,51,51,0.08);
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --radius: 20px;
+  --radius-sm: 12px;
+}
+
+html, body {
+  height: 100%; overflow: hidden;
+  background: var(--void); color: var(--text-primary);
+  font-family: var(--font-main); font-size: 14px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── WebGL Background ─────────────────────────────────────── */
+#bg-canvas {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 0; pointer-events: none;
+}
+
+/* ── Particle Overlay ─────────────────────────────────────── */
+#particle-canvas {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 1; pointer-events: none;
+}
+
+/* ── Film Grain ───────────────────────────────────────────── */
+.film-grain {
+  position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
+  z-index: 2; pointer-events: none; opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grain 0.5s steps(1) infinite;
+}
+@keyframes grain {
+  0% { transform: translate(0,0); }
+  25% { transform: translate(-5%,-5%); }
+  50% { transform: translate(5%,3%); }
+  75% { transform: translate(-3%,5%); }
+  100% { transform: translate(3%,-3%); }
+}
+
+/* ── SVG Filters ──────────────────────────────────────────── */
+.svg-filters { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ── App Shell ────────────────────────────────────────────── */
+#app {
+  position: relative; z-index: 3;
+  display: flex; flex-direction: column;
+  height: 100vh; overflow: hidden;
+}
+
+/* ── Animations ───────────────────────────────────────────── */
+@keyframes liquidFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(0, -4px, 0); }
+  66% { transform: translate3d(0, 2px, 0); }
+}
+@keyframes liquidGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(255,51,51,0.05); }
+  50% { box-shadow: 0 0 40px rgba(255,51,51,0.12); }
+}
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.7; }
+}
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fryGlow {
+  0%, 100% { box-shadow: 0 0 15px rgba(255,51,51,0.15), inset 0 0 8px rgba(255,51,51,0.05); }
+  50% { box-shadow: 0 0 35px rgba(255,51,51,0.4), 0 0 60px rgba(255,51,51,0.15), inset 0 0 12px rgba(255,51,51,0.1); }
+}
+@keyframes warningGlow {
+  0%, 100% { box-shadow: 0 0 12px rgba(255,170,0,0.1); }
+  50% { box-shadow: 0 0 25px rgba(255,170,0,0.25); }
+}
+
+.gpu-accel {
+  transform: translate3d(0,0,0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* ── Glass Panel (Chromatic Aberration) ───────────────────── */
+.glass {
+  position: relative;
+  background: transparent;
+  border-radius: var(--radius);
+  box-shadow:
+    0 0 2px 1px color-mix(in oklch, white, transparent 65%) inset,
+    0 0 10px 4px color-mix(in oklch, white, transparent 85%) inset,
+    0px 4px 16px rgba(17, 17, 26, 0.05),
+    0px 8px 24px rgba(17, 17, 26, 0.05),
+    0px 16px 56px rgba(17, 17, 26, 0.05),
+    0px 4px 16px rgba(17, 17, 26, 0.05) inset,
+    0px 8px 24px rgba(17, 17, 26, 0.05) inset,
+    0px 16px 56px rgba(17, 17, 26, 0.05) inset;
+  display: flex; flex-direction: column;
+  min-height: 0; overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  animation: liquidFloat 6s ease-in-out infinite, liquidGlow 3s ease-in-out infinite;
+}
+.glass:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 2px 1px color-mix(in oklch, white, transparent 55%) inset,
+    0 0 12px 5px color-mix(in oklch, white, transparent 80%) inset,
+    0px 6px 20px rgba(17, 17, 26, 0.08),
+    0px 12px 32px rgba(17, 17, 26, 0.08),
+    0px 20px 64px rgba(17, 17, 26, 0.08),
+    0px 6px 20px rgba(17, 17, 26, 0.08) inset,
+    0px 12px 32px rgba(17, 17, 26, 0.08) inset,
+    0px 20px 64px rgba(17, 17, 26, 0.08) inset;
+}
+.glass-ca-overlay {
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  pointer-events: none; z-index: 0; opacity: 0.85;
+}
+.glass::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: inherit;
+  background: linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 40%, transparent 100%);
+  pointer-events: none; z-index: 1;
+}
+.glass-light {
+  position: absolute; width: 200px; height: 200px;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 40%, transparent 70%);
+  filter: blur(15px); transform: translate(-50%, -50%);
+  opacity: 0; transition: opacity 0.3s ease;
+  z-index: 2; mix-blend-mode: overlay;
+}
+.glass:hover .glass-light { opacity: 1; }
+.glass-header {
+  padding: 16px 20px; flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 5;
+}
+.glass-title {
+  font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-secondary); font-weight: 500;
+}
+.glass-badge {
+  font-size: 10px; font-family: var(--font-mono);
+  padding: 2px 10px; border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  color: var(--text-secondary);
+}
+.glass-body {
+  flex: 1; overflow-y: auto; padding: 12px 16px; min-height: 0;
+  position: relative; z-index: 5;
+}
+.glass-body::-webkit-scrollbar { width: 3px; }
+.glass-body::-webkit-scrollbar-track { background: transparent; }
+.glass-body::-webkit-scrollbar-thumb { background: rgba(255,51,51,0.25); border-radius: 3px; }
+
+/* ── Nav Bar (RED accent for Fry Room) ────────────────────── */
+.nav-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 28px; flex-shrink: 0;
+  background: rgba(5,5,7,0.5);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  position: relative; z-index: 10;
+}
+.nav-bar::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent 5%, var(--red-glow) 50%, transparent 95%);
+}
+.nav-brand { display: flex; flex-direction: column; gap: 2px; }
+.nav-brand-name {
+  font-size: 13px; font-weight: 300; letter-spacing: 0.3em;
+  text-transform: uppercase; color: var(--text-primary);
+}
+.nav-brand-page {
+  font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--red); font-weight: 400;
+}
+.nav-brand-line {
+  width: 0; height: 1px; background: var(--red);
+  box-shadow: 0 0 8px var(--red-glow), 0 0 20px rgba(255,51,51,0.15);
+  margin-top: 4px;
+}
+.nav-tabs {
+  display: flex; gap: 4px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 14px; padding: 4px;
+  border: 1px solid rgba(255,255,255,0.04);
+  backdrop-filter: blur(12px);
+}
+.nav-tab {
+  padding: 7px 18px; border-radius: 10px; font-size: 11px;
+  letter-spacing: 0.06em; text-transform: uppercase; font-weight: 500;
+  color: var(--text-secondary); text-decoration: none;
+  transition: all 0.3s ease;
+}
+.nav-tab:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+.nav-tab.active {
+  color: var(--text-primary); background: rgba(255,51,51,0.1);
+  box-shadow: 0 0 16px rgba(255,51,51,0.08);
+}
+.nav-meta { display: flex; align-items: center; gap: 16px; }
+.nav-clock {
+  color: var(--text-secondary); font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.04em; font-weight: 300;
+}
+.nav-conn { display: flex; align-items: center; gap: 6px; font-size: 11px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-secondary); font-weight: 400;
+}
+.conn-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  transition: all 0.3s ease;
+}
+.conn-dot.ok {
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green-glow), 0 0 20px rgba(0,255,65,0.15);
+  animation: breathe 3s ease-in-out infinite;
+}
+.conn-dot.err { background: var(--red); box-shadow: 0 0 8px var(--red-glow); }
+
+/* ── Stats Row ────────────────────────────────────────────── */
+.stats-row {
+  display: flex; gap: 10px; padding: 16px 16px 0;
+  justify-content: center; flex-shrink: 0;
+}
+.stat-card {
+  flex: 1; min-width: 100px; max-width: 160px;
+  text-align: center; padding: 14px 10px;
+  animation: liquidFloat 6s ease-in-out infinite;
+}
+.stat-card:nth-child(2) { animation-delay: -1s; }
+.stat-card:nth-child(3) { animation-delay: -2s; }
+.stat-card:nth-child(4) { animation-delay: -3s; }
+.stat-card:nth-child(5) { animation-delay: -4s; }
+.stat-card:nth-child(6) { animation-delay: -5s; }
+.stat-number {
+  font-size: 48px; font-weight: 200; line-height: 1;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.stat-number.frying-num { color: var(--red); text-shadow: 0 0 20px var(--red-glow); }
+.stat-number.dead-num { color: var(--text-tertiary); }
+.stat-number.warning-num { color: var(--amber); }
+.stat-number.healthy-num { color: var(--green); }
+.stat-label {
+  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-secondary); font-weight: 500;
+}
+
+/* ── Main Layout ──────────────────────────────────────────── */
+.fry-main {
+  flex: 1; display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 16px; padding: 16px;
+  min-height: 0;
+}
+.fry-sidebar {
+  display: flex; flex-direction: column;
+  gap: 16px; min-height: 0;
+}
+.fry-sidebar .glass { flex: 1; min-height: 0; }
+
+/* ── Agent Grid (The Square) ──────────────────────────────── */
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+.agent-card {
+  position: relative;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.015);
+  border: 1px solid rgba(255,255,255,0.03);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+.agent-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  border-radius: 2px 2px 0 0;
+  transition: all 0.3s ease;
+}
+.agent-card.frying::before { background: var(--red); box-shadow: 0 0 12px var(--red-glow); }
+.agent-card.warning::before { background: var(--amber); box-shadow: 0 0 12px var(--amber-glow); }
+.agent-card.healthy::before { background: var(--green); box-shadow: 0 0 8px rgba(0,255,65,0.15); }
+.agent-card.dead::before { background: rgba(255,255,255,0.08); }
+.agent-card.frying { animation: fryGlow 1s ease-in-out infinite; }
+.agent-card.warning { animation: warningGlow 2s ease-in-out infinite; }
+.agent-card.dead { opacity: 0.4; }
+.agent-card:hover {
+  background: rgba(255,255,255,0.03);
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,0.06);
+}
+.agent-card-name {
+  font-size: 13px; font-weight: 400; color: var(--text-primary);
+  margin-bottom: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.agent-card-status {
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-weight: 400; margin-bottom: 8px;
+}
+.agent-card-status.frying { color: var(--red); }
+.agent-card-status.warning { color: var(--amber); }
+.agent-card-status.healthy { color: var(--green); }
+.agent-card-status.dead { color: var(--text-tertiary); }
+
+/* ── Health Bar ───────────────────────────────────────────── */
+.health-bar-wrap {
+  width: 100%; height: 3px; border-radius: 3px;
+  background: rgba(255,255,255,0.04); overflow: hidden;
+  margin-bottom: 8px;
+}
+.health-bar-fill {
+  height: 100%; border-radius: 3px;
+  transition: width 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.health-bar-fill.frying { background: var(--red); box-shadow: 0 0 6px var(--red-glow); }
+.health-bar-fill.warning { background: var(--amber); box-shadow: 0 0 6px var(--amber-glow); }
+.health-bar-fill.healthy { background: var(--green); box-shadow: 0 0 4px rgba(0,255,65,0.15); }
+.health-bar-fill.dead { background: rgba(255,255,255,0.08); }
+
+.agent-card-metrics {
+  display: flex; gap: 12px;
+  font-size: 10px; font-family: var(--font-mono);
+  color: var(--text-secondary); font-weight: 300;
+}
+
+/* ── Empty State ──────────────────────────────────────────── */
+.fry-empty {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; min-height: 200px;
+  color: var(--text-tertiary); font-size: 13px;
+  letter-spacing: 0.04em; font-weight: 300;
+  text-align: center; line-height: 1.8;
+  grid-column: 1 / -1;
+}
+.feed-empty {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; color: var(--text-tertiary); font-size: 12px;
+  letter-spacing: 0.06em; font-weight: 300; padding: 24px;
+}
+
+/* ── Performance Scoreboard ───────────────────────────────── */
+.scoreboard-table {
+  width: 100%; border-collapse: collapse;
+}
+.scoreboard-table th {
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--red); font-weight: 500; text-align: left;
+  padding: 0 0 8px 0;
+  border-bottom: 1px solid rgba(255,51,51,0.08);
+}
+.scoreboard-table th:last-child { text-align: right; }
+.scoreboard-table td {
+  font-size: 11px; padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+  color: var(--text-secondary); font-weight: 300;
+}
+.scoreboard-table td:first-child {
+  font-family: var(--font-mono); color: var(--text-tertiary);
+  width: 28px;
+}
+.scoreboard-table td:nth-child(2) {
+  color: var(--text-primary); font-weight: 400;
+  max-width: 120px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.scoreboard-table td:nth-child(3) {
+  font-family: var(--font-mono); width: 50px; text-align: right;
+}
+.scoreboard-table td:last-child {
+  text-align: right; width: 24px;
+}
+.score-dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+}
+.score-dot.frying { background: var(--red); box-shadow: 0 0 6px var(--red-glow); }
+.score-dot.warning { background: var(--amber); box-shadow: 0 0 6px var(--amber-glow); }
+.score-dot.healthy { background: var(--green); box-shadow: 0 0 4px rgba(0,255,65,0.15); }
+.score-dot.dead { background: rgba(255,255,255,0.12); }
+
+/* ── Hall of Shame ────────────────────────────────────────── */
+.shame-entry {
+  padding: 8px 12px;
+  border-left: 2px solid var(--red);
+  margin-bottom: 6px;
+  animation: fadeSlideIn 0.3s ease;
+  border-radius: 0 4px 4px 0;
+  background: rgba(255,51,51,0.02);
+}
+.shame-time {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-tertiary); font-weight: 300;
+  margin-bottom: 2px;
+}
+.shame-text {
+  font-size: 11px; color: var(--text-secondary); font-weight: 300;
+  line-height: 1.4;
+}
+.shame-agent { color: var(--red); font-weight: 500; }
+
+/* ── Watermark ────────────────────────────────────────────── */
+.watermark {
+  position: fixed; bottom: 10px; right: 24px;
+  font-size: 10px; color: rgba(255,255,255,0.06);
+  letter-spacing: 0.12em; z-index: 4; pointer-events: none;
+  font-weight: 300;
+}
+</style>
+</head>
+<body>
+
+<!-- ── SVG Chromatic Aberration Filters ────────────────────── -->
+<svg class="svg-filters" xmlns="http://www.w3.org/2000/svg">
+  <defs></defs>
+</svg>
+
+<canvas id="bg-canvas"></canvas>
+<canvas id="particle-canvas"></canvas>
+<div class="film-grain"></div>
+
+<div id="app">
+  <!-- ── NAV BAR ──────────────────────────────────────────── -->
+  <nav class="nav-bar">
+    <div class="nav-brand">
+      <div class="nav-brand-name">THEIA</div>
+      <div class="nav-brand-page">Fry Room</div>
+      <div class="nav-brand-line" id="brand-line"></div>
+    </div>
+    <div class="nav-tabs">
+      <a href="/dashboard/" class="nav-tab">Dashboard</a>
+      <a href="/dashboard/mission-control" class="nav-tab">Mission Control</a>
+      <a href="/dashboard/fry-room" class="nav-tab active">Fry Room</a>
+    </div>
+    <div class="nav-meta">
+      <span class="nav-clock" id="clock">00:00:00 UTC</span>
+      <div class="nav-conn" id="conn-status">
+        <span class="conn-dot err" id="conn-dot"></span>
+        <span id="conn-label">Offline</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── HERO STATS ───────────────────────────────────────── -->
+  <div class="stats-row" id="stats-row">
+    <div class="stat-card gpu-accel">
+      <div class="stat-number" id="stat-total">0</div>
+      <div class="stat-label">Total</div>
+    </div>
+    <div class="stat-card gpu-accel">
+      <div class="stat-number healthy-num" id="stat-healthy">0</div>
+      <div class="stat-label">Healthy</div>
+    </div>
+    <div class="stat-card gpu-accel">
+      <div class="stat-number warning-num" id="stat-warning">0</div>
+      <div class="stat-label">Warning</div>
+    </div>
+    <div class="stat-card gpu-accel">
+      <div class="stat-number frying-num" id="stat-frying">0</div>
+      <div class="stat-label">Frying</div>
+    </div>
+    <div class="stat-card gpu-accel">
+      <div class="stat-number dead-num" id="stat-dead">0</div>
+      <div class="stat-label">Dead</div>
+    </div>
+    <div class="stat-card gpu-accel">
+      <div class="stat-number" id="stat-restarts">0</div>
+      <div class="stat-label">Restarts</div>
+    </div>
+  </div>
+
+  <!-- ── MAIN GRID ────────────────────────────────────────── -->
+  <div class="fry-main">
+    <!-- Left: The Square -->
+    <div class="glass gpu-accel" id="panel-square">
+      <div class="glass-ca-overlay"></div>
+      <div class="glass-light"></div>
+      <div class="glass-header">
+        <span class="glass-title">The Square — Arena of Judgment</span>
+        <span class="glass-badge" id="square-count">0</span>
+      </div>
+      <div class="glass-body" id="square-body">
+        <div class="agent-grid" id="agent-grid">
+          <div class="fry-empty">All agents operational.<br>The furnace sleeps.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <div class="fry-sidebar">
+      <!-- Performance Scoreboard -->
+      <div class="glass gpu-accel" id="panel-scoreboard">
+        <div class="glass-ca-overlay"></div>
+        <div class="glass-light"></div>
+        <div class="glass-header">
+          <span class="glass-title">Performance Scoreboard</span>
+        </div>
+        <div class="glass-body" id="scoreboard-body">
+          <div class="feed-empty">Awaiting telemetry…</div>
+        </div>
+      </div>
+
+      <!-- Hall of Shame -->
+      <div class="glass gpu-accel" id="panel-shame">
+        <div class="glass-ca-overlay"></div>
+        <div class="glass-light"></div>
+        <div class="glass-header">
+          <span class="glass-title">Hall of Shame</span>
+          <span class="glass-badge" id="shame-count">0</span>
+        </div>
+        <div class="glass-body" id="shame-body">
+          <div class="feed-empty">No failures recorded</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="watermark">THEIA AI SYSTEMS</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   CHROMATIC ABERRATION GLASS SYSTEM
+   Exact copy from Dashboard — SVG displacement filter pipeline
+   ═══════════════════════════════════════════════════════════════ */
+const GlassSystem = {
+  panels: [],
+  filterDefs: document.querySelector('.svg-filters defs'),
+  counter: 0,
+
+  config: {
+    backgroundOpacity: 0,
+    blur: 16,
+    brightness: 8,
+    opacity: 0.75,
+    saturation: 1.2,
+    distortionScale: -180,
+    borderWidth: 0.07,
+    borderRadius: 20,
+    mixBlendMode: 'difference',
+    redOffset: 0,
+    greenOffset: 10,
+    blueOffset: 20,
+    xChannel: 'R',
+    yChannel: 'G',
+  },
+
+  generateDisplacementSVG(width, height, id) {
+    const c = this.config;
+    const edgeSize = Math.min(width, height) * (c.borderWidth * 0.5);
+    return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="rg-${id}" x1="100%" y1="0%" x2="0%" y2="0%">
+          <stop offset="0%" stop-color="#0000"/>
+          <stop offset="100%" stop-color="red"/>
+        </linearGradient>
+        <linearGradient id="bg-${id}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#0000"/>
+          <stop offset="100%" stop-color="blue"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="${width}" height="${height}" fill="black"/>
+      <rect x="0" y="0" width="${width}" height="${height}" rx="${c.borderRadius}" fill="url(#rg-${id})"/>
+      <rect x="0" y="0" width="${width}" height="${height}" rx="${c.borderRadius}" fill="url(#bg-${id})" style="mix-blend-mode:${c.mixBlendMode}"/>
+      <rect x="${edgeSize}" y="${edgeSize}" width="${width - edgeSize * 2}" height="${height - edgeSize * 2}" rx="${c.borderRadius}" fill="hsl(0 0% ${c.brightness}% / ${c.opacity})" style="filter:blur(${c.blur}px)"/>
+    </svg>`;
+  },
+
+  createFilter(id) {
+    const c = this.config;
+    const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+    filter.setAttribute('id', `glass-ca-${id}`);
+    filter.setAttribute('colorInterpolationFilters', 'sRGB');
+    filter.setAttribute('x', '0%'); filter.setAttribute('y', '0%');
+    filter.setAttribute('width', '100%'); filter.setAttribute('height', '100%');
+
+    filter.innerHTML = `
+      <feImage x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="map" data-feimage="true"/>
+      <feDisplacementMap in="SourceGraphic" in2="map" xChannelSelector="${c.xChannel}" yChannelSelector="${c.yChannel}" scale="${c.distortionScale + c.redOffset}" result="dispRed"/>
+      <feColorMatrix in="dispRed" type="matrix" values="1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0" result="red"/>
+      <feDisplacementMap in="SourceGraphic" in2="map" xChannelSelector="${c.xChannel}" yChannelSelector="${c.yChannel}" scale="${c.distortionScale + c.greenOffset}" result="dispGreen"/>
+      <feColorMatrix in="dispGreen" type="matrix" values="0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 0" result="green"/>
+      <feDisplacementMap in="SourceGraphic" in2="map" xChannelSelector="${c.xChannel}" yChannelSelector="${c.yChannel}" scale="${c.distortionScale + c.blueOffset}" result="dispBlue"/>
+      <feColorMatrix in="dispBlue" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 1 0" result="blue"/>
+      <feBlend in="red" in2="green" mode="screen" result="rg"/>
+      <feBlend in="rg" in2="blue" mode="screen" result="output"/>
+      <feGaussianBlur in="output" stdDeviation="0.7"/>
+    `;
+
+    this.filterDefs.appendChild(filter);
+    return filter;
+  },
+
+  updateFilterImage(filter, width, height, id) {
+    const svgContent = this.generateDisplacementSVG(width, height, id);
+    const dataUri = 'data:image/svg+xml,' + encodeURIComponent(svgContent);
+    const feImage = filter.querySelector('[data-feimage]');
+    if (feImage) feImage.setAttribute('href', dataUri);
+  },
+
+  init() {
+    document.querySelectorAll('.glass').forEach(panel => {
+      const id = this.counter++;
+      const filter = this.createFilter(id);
+      const overlay = panel.querySelector('.glass-ca-overlay');
+
+      if (overlay) {
+        overlay.style.filter = `url(#glass-ca-${id})`;
+        overlay.style.background = `rgba(0,0,0,${this.config.backgroundOpacity})`;
+      }
+
+      const updateSize = () => {
+        const rect = panel.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          this.updateFilterImage(filter, rect.width, rect.height, id);
+        }
+      };
+
+      const ro = new ResizeObserver(() => setTimeout(updateSize, 0));
+      ro.observe(panel);
+      setTimeout(updateSize, 100);
+
+      this.panels.push({ panel, filter, id, overlay, ro });
+    });
+  }
+};
+
+/* ── Cursor-Tracking Light Spots ──────────────────────────── */
+document.querySelectorAll('.glass').forEach(panel => {
+  const light = panel.querySelector('.glass-light');
+  if (!light) return;
+  panel.addEventListener('mousemove', e => {
+    const rect = panel.getBoundingClientRect();
+    light.style.left = (e.clientX - rect.left) + 'px';
+    light.style.top = (e.clientY - rect.top) + 'px';
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   WEBGL — THE OBSIDIAN FURNACE
+   Original Voronoi-based crack shader
+   Glass floor over a furnace — obsidian cracked with heat below
+   u_fryCount drives intensity: 0 = dormant, 5+ = fully active
+   ═══════════════════════════════════════════════════════════════ */
+let shaderUniforms;
+
+(function initBackground() {
+  const canvas = document.getElementById('bg-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+  let mouseX = 0.5, mouseY = 0.5;
+  document.addEventListener('mousemove', e => {
+    mouseX = e.clientX / window.innerWidth;
+    mouseY = 1.0 - e.clientY / window.innerHeight;
+  });
+
+  const fragmentShader = `
+    precision highp float;
+
+    uniform float u_time;
+    uniform vec2 u_resolution;
+    uniform vec2 u_mouse;
+    uniform float u_fryCount;
+
+    /* ═══════════════════════════════════════════════════════════
+       THE OBSIDIAN FURNACE — A rendering pipeline for Hades
+       7 composited visual passes. 40+ tuning constants.
+
+       Pass 1: Multi-scale Voronoi crack field (3 octaves)
+       Pass 2: Heat distortion (multi-freq UV warp near cracks)
+       Pass 3: Crack light transport (caustic FBM + depth color)
+       Pass 4: Subsurface scattering (light bleeds into obsidian)
+       Pass 5: Domain-warped atmospheric haze (double-warped FBM)
+       Pass 6: Mouse interaction (local heating + proximity glow)
+       Pass 7: Post-processing (vignette, color grade, gamma, dither)
+       ═══════════════════════════════════════════════════════════ */
+
+    /* ── VORONOI CRACK FIELD ───────────────────────────── */
+    #define CRACK_SCALE_1 3.8
+    #define CRACK_SCALE_2 8.5
+    #define CRACK_SCALE_3 20.0
+    #define CRACK_DRIFT_1 0.05
+    #define CRACK_DRIFT_2 0.08
+    #define CRACK_DRIFT_3 0.03
+    #define CRACK_BASE_W1 0.022
+    #define CRACK_MAX_W1 0.095
+    #define CRACK_BASE_W2 0.015
+    #define CRACK_MAX_W2 0.06
+    #define CRACK_BASE_W3 0.004
+    #define CRACK_MAX_W3 0.04
+
+    /* ── LIGHT TRANSPORT ───────────────────────────────── */
+    #define LIGHT_BASE 0.02
+    #define LIGHT_MAX 0.55
+    #define CAUSTIC_SCALE 12.0
+    #define CAUSTIC_SPEED 0.4
+    #define BLEED_RADIUS 0.02
+    #define BLEED_STRENGTH 0.12
+    #define SSS_DEPTH 0.35
+    #define SSS_STRENGTH 0.08
+
+    /* ── HEAT DISTORTION ───────────────────────────────── */
+    #define HEAT_FREQ_X 38.0
+    #define HEAT_FREQ_Y 25.0
+    #define HEAT_SPEED_X 2.8
+    #define HEAT_SPEED_Y 2.0
+    #define HEAT_BASE_STR 0.0008
+    #define HEAT_MAX_STR 0.005
+
+    /* ── ATMOSPHERIC HAZE ──────────────────────────────── */
+    #define HAZE_SCALE 2.5
+    #define HAZE_OCTAVES 5
+    #define HAZE_SPEED_X 0.06
+    #define HAZE_SPEED_Y -0.08
+    #define HAZE_INTENSITY 0.035
+    #define HAZE_CRACK_BIND 0.6
+    #define HAZE_TILT_STR 0.03
+
+    /* ── MOUSE ─────────────────────────────────────────── */
+    #define MOUSE_RADIUS 0.08
+    #define MOUSE_HEAT_STR 0.18
+    #define MOUSE_WARP 0.003
+
+    /* ── POST-PROCESSING ───────────────────────────────── */
+    #define VIG_START 0.1
+    #define VIG_END 0.88
+    #define SHADOW_BLUE vec3(0.0, 0.0, 0.008)
+    #define DITHER_STR 1.0
+
+    /* ── HEARTBEAT (40 BPM) ────────────────────────────── */
+    #define HB_RADS 4.18879
+    #define HB_SHARP 25.0
+    #define HB_STRENGTH 0.15
+
+    /* ── sRGB GAMMA ────────────────────────────────────── */
+    float srgb(float x) {
+      return x <= 0.0031308 ? 12.92 * x : 1.055 * pow(x, 1.0 / 2.4) - 0.055;
+    }
+
+    /* ── HASH FUNCTIONS ────────────────────────────────── */
+    float hash21(vec2 p) {
+      p = fract(p * vec2(123.34, 456.21));
+      p += dot(p, p + 34.345);
+      return fract(p.x * p.y);
+    }
+    vec2 hash22(vec2 p) {
+      p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+      return fract(sin(p) * 43758.5453);
+    }
+
+    /* ── VALUE NOISE ───────────────────────────────────── */
+    float vnoise(vec2 p) {
+      vec2 i = floor(p), f = fract(p);
+      float a = hash21(i), b = hash21(i + vec2(1, 0));
+      float c = hash21(i + vec2(0, 1)), d = hash21(i + vec2(1, 1));
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+    }
+
+    /* ── FBM (5-octave, rotated between octaves) ───────── */
+    float fbm(vec2 p) {
+      float v = 0.0, a = 0.55;
+      mat2 m = mat2(0.86, 0.5, -0.5, 0.86);
+      for (int i = 0; i < HAZE_OCTAVES; i++) {
+        v += a * vnoise(p);
+        p = m * p * 2.02 + 17.1;
+        a *= 0.5;
+      }
+      return v;
+    }
+
+    /* ── VORONOI (d1, d2, cellId) ──────────────────────── */
+    vec3 voronoi3(vec2 uv, float seed, float drift) {
+      vec2 n = floor(uv), f = fract(uv);
+      float d1 = 8.0, d2 = 8.0, cId = 0.0;
+      for (int j = -1; j <= 1; j++) {
+        for (int i = -1; i <= 1; i++) {
+          vec2 g = vec2(float(i), float(j));
+          vec2 o = hash22(n + g + seed);
+          o = 0.5 + 0.5 * sin(u_time * drift + 6.2831853 * o);
+          vec2 r = g + o - f;
+          float d = dot(r, r);
+          if (d < d1) { d2 = d1; d1 = d; cId = hash21(n + g + seed); }
+          else if (d < d2) { d2 = d; }
+        }
+      }
+      return vec3(sqrt(d1), sqrt(d2), cId);
+    }
+
+    vec2 voronoi(vec2 uv, float seed, float drift) {
+      return voronoi3(uv, seed, drift).xy;
+    }
+
+    void main() {
+      vec2 fragCoord = gl_FragCoord.xy;
+      vec2 uv = fragCoord / u_resolution;
+      float aspect = u_resolution.x / u_resolution.y;
+      vec2 p = uv * vec2(aspect, 1.0);
+
+      /* ── GLOBAL MODULATION ──────────────────────────── */
+      float intensity = clamp(u_fryCount / 5.0, 0.0, 1.0);
+      float hb = pow(max(0.0, sin(u_time * HB_RADS)), HB_SHARP);
+      float hbMod = 1.0 + hb * HB_STRENGTH * intensity;
+      vec2 mWorld = u_mouse * vec2(aspect, 1.0);
+      float mDist = length(p - mWorld);
+      float mInf = MOUSE_HEAT_STR / (mDist * mDist + MOUSE_RADIUS);
+
+      /* ═════════════════════════════════════════════════
+         PASS 1: MULTI-SCALE VORONOI CRACK FIELD
+         Three octaves. Independent drift, thresholds,
+         visual weights. Cell ID for per-cell variation.
+         ═════════════════════════════════════════════════ */
+
+      vec3 v1f = voronoi3(p * CRACK_SCALE_1, 0.0, CRACK_DRIFT_1);
+      float edge1 = v1f.y - v1f.x;
+      float cellId1 = v1f.z;
+
+      vec2 v2 = voronoi(p * CRACK_SCALE_2 + 3.7, 50.0, CRACK_DRIFT_2);
+      float edge2 = v2.y - v2.x;
+
+      float fineEmergence = smoothstep(0.0, 0.35, intensity);
+      vec2 v3 = voronoi(p * CRACK_SCALE_3 + 11.3, 100.0, CRACK_DRIFT_3);
+      float edge3 = v3.y - v3.x;
+
+      float tw1 = mix(CRACK_BASE_W1, CRACK_MAX_W1, intensity);
+      float tw2 = mix(CRACK_BASE_W2, CRACK_MAX_W2, intensity);
+      float tw3 = mix(CRACK_BASE_W3, CRACK_MAX_W3, intensity);
+
+      float crack1 = smoothstep(tw1, tw1 * 0.12, edge1);
+      float crack2 = smoothstep(tw2, tw2 * 0.12, edge2) * 0.5;
+      float crack3 = smoothstep(tw3, tw3 * 0.08, edge3) * 0.28 * fineEmergence;
+      float totalCrack = clamp(crack1 + crack2 + crack3, 0.0, 1.0);
+
+      /* ═════════════════════════════════════════════════
+         PASS 2: HEAT DISTORTION
+         Multi-frequency UV warp weighted by crack proximity.
+         Three harmonics: primary wave, turbulence, shimmer.
+         ═════════════════════════════════════════════════ */
+
+      float hStr = mix(HEAT_BASE_STR, HEAT_MAX_STR, intensity) * totalCrack;
+      hStr += MOUSE_WARP * mInf * 0.3;
+
+      /* Primary heat wave */
+      vec2 hOff = vec2(
+        sin(p.y * HEAT_FREQ_X + u_time * HEAT_SPEED_X) * cos(p.x * 12.0 + u_time * 1.3),
+        cos(p.x * HEAT_FREQ_Y + u_time * HEAT_SPEED_Y) * sin(p.y * 15.0 + u_time * 0.9)
+      ) * hStr;
+
+      /* Second harmonic: turbulence */
+      hOff += vec2(
+        sin(p.y * 65.0 + u_time * 4.5) * 0.3,
+        cos(p.x * 55.0 + u_time * 3.2) * 0.3
+      ) * hStr * 0.4;
+
+      /* Third harmonic: sub-pixel shimmer at high intensity */
+      hOff += vec2(
+        cos(p.y * 120.0 + u_time * 7.0),
+        sin(p.x * 95.0 + u_time * 5.5)
+      ) * hStr * 0.15 * intensity;
+
+      vec2 pD = p + hOff;
+
+      /* Re-evaluate structural cracks under distortion */
+      vec2 v1d = voronoi(pD * CRACK_SCALE_1, 0.0, CRACK_DRIFT_1);
+      float crack1d = smoothstep(tw1, tw1 * 0.12, v1d.y - v1d.x);
+      float shimCrack = mix(totalCrack, clamp(crack1d + crack2 + crack3, 0.0, 1.0), intensity * 0.45);
+
+      /* ═════════════════════════════════════════════════
+         PASS 3: CRACK LIGHT TRANSPORT
+         Caustic patterns via domain-warped FBM.
+         Color gradient: deep crimson → amber → white-hot.
+         Per-cell brightness variation.
+         ═════════════════════════════════════════════════ */
+
+      /* Base obsidian surface */
+      vec3 color = vec3(0.012, 0.012, 0.018);
+
+      /* Obsidian micro-texture (volcanic glass grain) */
+      float microN = vnoise(p * 80.0);
+      float microN2 = vnoise(p * 160.0 + 7.3);
+      color += vec3(0.003, 0.0025, 0.005) * microN;
+      color += vec3(0.001, 0.001, 0.002) * microN2;
+
+      /* Per-cell obsidian shade variation */
+      color += vec3(cellId1 * 0.004, cellId1 * 0.003, cellId1 * 0.005);
+
+      /* Caustic patterns: domain-warped FBM */
+      float cw1 = fbm(p * CAUSTIC_SCALE * 0.8 + u_time * CAUSTIC_SPEED * vec2(1.0, -0.7));
+      float cw2 = fbm(p * CAUSTIC_SCALE * 1.1 + u_time * CAUSTIC_SPEED * vec2(-0.5, 0.4) + 5.3);
+      float caustic = fbm(p * CAUSTIC_SCALE + vec2(cw1, cw2) * 0.4 + u_time * 0.08);
+      caustic = smoothstep(0.28, 0.72, caustic);
+
+      /* Secondary micro-caustic (faster, finer) */
+      float microC = vnoise(p * 30.0 + u_time * vec2(1.2, -0.8));
+      microC = smoothstep(0.35, 0.65, microC);
+
+      /* Crack depth analysis */
+      float crackDepth = smoothstep(0.0, tw1 * 0.7, edge1);
+
+      /* Color gradient: deep crimson → amber → white-hot */
+      vec3 deepCol = vec3(0.85, 0.08, 0.02);
+      vec3 midCol = vec3(1.0, 0.45, 0.06);
+      vec3 hotCol = vec3(1.0, 0.82, 0.38);
+      vec3 crackCol = mix(deepCol, midCol, crackDepth);
+      crackCol = mix(crackCol, hotCol, intensity * 0.3 * caustic);
+
+      /* Light intensity: base + caustic + micro detail + heartbeat */
+      float lightI = mix(LIGHT_BASE, LIGHT_MAX, intensity);
+      lightI *= (0.6 + 0.25 * caustic + 0.15 * microC);
+      lightI *= hbMod;
+
+      /* Per-cell brightness (some cells glow more) */
+      lightI *= 0.7 + 0.3 * hash21(vec2(cellId1 * 7.3, 2.1));
+
+      color += crackCol * shimCrack * lightI;
+
+      /* ═════════════════════════════════════════════════
+         PASS 4: SUBSURFACE SCATTERING
+         Light bleeds through obsidian near cracks.
+         Deep glow where the rock is thinnest.
+         ═════════════════════════════════════════════════ */
+
+      vec3 sssCol = vec3(0.08, 0.012, 0.006);
+
+      /* Bleed halo around structural cracks */
+      float bleedMask = smoothstep(BLEED_RADIUS + tw1, tw1 * 0.5, edge1);
+      float sssNoise = vnoise(p * 15.0 + u_time * 0.1) * 0.7 + 0.3;
+      color += sssCol * bleedMask * BLEED_STRENGTH * intensity * sssNoise * hbMod;
+
+      /* Deep subsurface: thin obsidian over furnace */
+      float deepGlow = smoothstep(SSS_DEPTH, 0.0, v1f.x) * intensity;
+      color += sssCol * deepGlow * SSS_STRENGTH * hbMod;
+
+      /* Medium crack bleed */
+      float bleed2 = smoothstep(tw2 * 2.0, tw2 * 0.3, edge2) * 0.3;
+      color += sssCol * bleed2 * intensity * 0.5 * hbMod;
+
+      /* ═════════════════════════════════════════════════
+         PASS 5: DOMAIN-WARPED ATMOSPHERIC HAZE
+         Double-warped FBM fog. Concentrates near cracks.
+         Mouse tilt shifts direction. Heat rises.
+         ═════════════════════════════════════════════════ */
+
+      vec2 hUV = p * HAZE_SCALE;
+      vec2 tilt = (u_mouse - 0.5) * HAZE_TILT_STR;
+      vec2 hazeDir = normalize(vec2(HAZE_SPEED_X, HAZE_SPEED_Y) + tilt);
+      hUV += u_time * hazeDir * 0.1;
+
+      /* Perpendicular drift for organic motion */
+      vec2 perp = vec2(-hazeDir.y, hazeDir.x);
+      hUV += perp * (0.08 * sin(dot(p, perp) * 0.08 + u_time * 0.9));
+
+      /* Double domain-warped FBM */
+      float hw1 = fbm(hUV + vec2(7.3, 2.1));
+      float hw2 = fbm(hUV + vec2(-3.7, 5.9));
+      float haze = fbm(hUV + vec2(hw1, hw2) * 0.55);
+      float hw3 = fbm(hUV * 1.3 + vec2(haze, hw1) * 0.3 + u_time * 0.02);
+      haze = mix(haze, hw3, 0.35);
+
+      /* Haze concentrates near cracks */
+      float hazeAff = 1.0 + HAZE_CRACK_BIND * totalCrack;
+
+      /* Vertical gradient: heat rises */
+      float vertGrad = smoothstep(0.0, 0.6, uv.y) * 0.5 + 0.5;
+
+      vec3 hazeCol = vec3(0.055, 0.013, 0.007);
+      float hazeI = HAZE_INTENSITY * (0.4 + intensity * 0.6);
+      color += hazeCol * haze * hazeAff * hazeI * hbMod * vertGrad;
+
+      /* Haze-crack interaction: cracks cut through haze */
+      color *= mix(1.0, 1.0 - shimCrack * 0.3, haze * 0.2);
+
+      /* ═════════════════════════════════════════════════
+         PASS 6: MOUSE INTERACTION
+         Local hot spot. Surface proximity glow.
+         Mouse-driven haze brightening.
+         ═════════════════════════════════════════════════ */
+
+      color += crackCol * shimCrack * mInf * 0.12;
+
+      /* Surface proximity glow */
+      float mGlow = 0.015 / (mDist * mDist + 0.04);
+      color += vec3(0.04, 0.005, 0.002) * mGlow * intensity;
+
+      /* Mouse-local haze brightening */
+      float mHaze = 0.008 / (mDist + 0.1);
+      color += hazeCol * mHaze * haze * intensity;
+
+      /* ═════════════════════════════════════════════════
+         PASS 7: POST-PROCESSING
+         Vignette, shadow color-grade, highlight compression,
+         per-channel sRGB gamma, dithering.
+         ═════════════════════════════════════════════════ */
+
+      /* Heavy vignette */
+      float vigDist = length(uv - 0.5);
+      float vig = 1.0 - smoothstep(VIG_START, VIG_END, vigDist);
+      color *= vig;
+
+      /* Push deep shadows toward cold blue (obsidian tint) */
+      float luma = dot(color, vec3(0.299, 0.587, 0.114));
+      float shadowMask = 1.0 - smoothstep(0.0, 0.06, luma);
+      color += SHADOW_BLUE * shadowMask;
+
+      /* Highlight compression: prevent clipping on hot cracks */
+      color = color / (1.0 + color * 0.15);
+
+      /* sRGB gamma (proper per-channel, not pow 1/2.2) */
+      color = vec3(srgb(max(color.r, 0.0)), srgb(max(color.g, 0.0)), srgb(max(color.b, 0.0)));
+
+      /* Dithering (prevents banding on dark gradients) */
+      float dith = (hash21(fragCoord + fract(u_time * 100.0)) - 0.5) * (DITHER_STR / 255.0);
+      color += dith;
+
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `;
+
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      u_time: { value: 0 },
+      u_resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+      u_mouse: { value: new THREE.Vector2(0.5, 0.5) },
+      u_fryCount: { value: 0 }
+    },
+    vertexShader: `void main() { gl_Position = vec4(position, 1.0); }`,
+    fragmentShader
+  });
+
+  shaderUniforms = material.uniforms;
+
+  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
+
+  window.addEventListener('resize', () => {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    material.uniforms.u_resolution.value.set(window.innerWidth, window.innerHeight);
+  });
+
+  const t0 = performance.now();
+  (function animate() {
+    material.uniforms.u_time.value = (performance.now() - t0) * 0.001;
+    material.uniforms.u_mouse.value.set(mouseX, mouseY);
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  })();
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   PARTICLE FIELD — Embers rising from cracks
+   400-600 tiny sparks. Crimson/amber. Very dim.
+   Like wisps of heat from hairline fractures in obsidian.
+   ═══════════════════════════════════════════════════════════════ */
+(function initParticles() {
+  const canvas = document.getElementById('particle-canvas');
+  const ctx = canvas.getContext('2d');
+  const COUNT = 500;
+  let W, H;
+  const particles = [];
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (let i = 0; i < COUNT; i++) {
+    particles.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.08,
+      vy: -(0.08 + Math.random() * 0.25),
+      size: 0.3 + Math.random() * 0.6,
+      alpha: 0.015 + Math.random() * 0.05,
+      hue: Math.random() < 0.6 ? (0 + Math.random() * 12) : (25 + Math.random() * 15),
+      phase: Math.random() * Math.PI * 2,
+      life: Math.random(),
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const t = performance.now() * 0.001;
+
+    for (const p of particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+
+      /* Slight horizontal wander */
+      p.vx += (Math.random() - 0.5) * 0.005;
+      p.vx *= 0.998;
+
+      /* Lifecycle: fade as they rise, respawn at bottom */
+      p.life += 0.001;
+      if (p.y < -10 || p.life > 1) {
+        p.x = Math.random() * W;
+        p.y = H + Math.random() * 20;
+        p.life = 0;
+        p.vx = (Math.random() - 0.5) * 0.08;
+      }
+
+      /* Wrap horizontal */
+      if (p.x < -5) p.x = W + 5;
+      if (p.x > W + 5) p.x = -5;
+
+      /* Fade: bright at start, dim toward end */
+      const lifeFade = 1.0 - p.life;
+      const flicker = 0.6 + Math.sin(t * 1.2 + p.phase) * 0.4;
+
+      ctx.globalAlpha = p.alpha * lifeFade * flicker;
+      ctx.fillStyle = `hsl(${p.hue}, 75%, ${40 + p.life * 20}%)`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (0.5 + lifeFade * 0.5), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   GSAP ENTRANCE ANIMATIONS
+   ═══════════════════════════════════════════════════════════════ */
+gsap.set('#app', { opacity: 0 });
+gsap.to('#app', { opacity: 1, duration: 1, ease: 'power2.out', delay: 0.15 });
+gsap.from('.nav-bar', { y: -20, opacity: 0, duration: 0.7, ease: 'power3.out', delay: 0.3 });
+gsap.to('#brand-line', { width: 48, duration: 1.2, ease: 'power2.out', delay: 0.8 });
+
+gsap.from('.stats-row', { y: 15, opacity: 0, duration: 0.7, ease: 'power3.out', delay: 0.45 });
+gsap.from('#panel-square', { x: -20, opacity: 0, duration: 0.8, ease: 'power3.out', delay: 0.55 });
+gsap.from('#panel-scoreboard', { x: 20, opacity: 0, duration: 0.7, ease: 'power3.out', delay: 0.65 });
+gsap.from('#panel-shame', { x: 20, opacity: 0, duration: 0.7, ease: 'power3.out', delay: 0.8 });
+
+/* ═══════════════════════════════════════════════════════════════
+   STATE & WEBSOCKET
+   ═══════════════════════════════════════════════════════════════ */
+const state = {
+  services: [], system: {}, neural: {}, brain: {}, recall: {},
+  cloudBrain: {}, feed: [], connected: false,
+};
+const shameLog = [];
+const MAX_SHAME = 50;
+let prevClassifications = {};
+let ws, reconnTimer;
+
+/* ── Fry Classification ───────────────────────────────────── */
+function classifyAgent(s) {
+  if (s.status === 'errored' || s.status === 'error' || s.status === 'stopped' || s.status === 'stopping') return 'dead';
+  if (s.status !== 'online') return 'dead';
+  const h = s.health ?? 100;
+  if (h <= 30) return 'frying';
+  if (h <= 60) return 'warning';
+  return 'healthy';
+}
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/dashboard/ws`);
+  ws.onopen = () => { state.connected = true; renderConn(); };
+  ws.onclose = () => { state.connected = false; renderConn(); reconnTimer = setTimeout(connect, 3000); };
+  ws.onerror = () => ws.close();
+  ws.onmessage = (ev) => {
+    try {
+      const { type, data } = JSON.parse(ev.data);
+      switch (type) {
+        case 'services':
+          state.services = data.services || [];
+          state.system = data.system || {};
+          renderAll();
+          break;
+        case 'neural': state.neural = data; break;
+        case 'brain': state.brain = data; break;
+        case 'recall': state.recall = data; break;
+        case 'cloud-brain': state.cloudBrain = data; break;
+        case 'feed': break; /* spectator view — no feed panel */
+      }
+    } catch {}
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RENDERERS
+   ═══════════════════════════════════════════════════════════════ */
+
+function renderConn() {
+  const dot = document.getElementById('conn-dot');
+  const label = document.getElementById('conn-label');
+  if (state.connected) {
+    dot.className = 'conn-dot ok'; label.textContent = 'Online';
+  } else {
+    dot.className = 'conn-dot err'; label.textContent = 'Offline';
+  }
+}
+
+/* ── Hero Stats with GSAP Count-Up ────────────────────────── */
+const statTargets = { total: 0, healthy: 0, warning: 0, frying: 0, dead: 0, restarts: 0 };
+
+function animateStatTo(id, target) {
+  const el = document.getElementById(`stat-${id}`);
+  if (!el) return;
+  if (statTargets[id] === target) return;
+  statTargets[id] = target;
+  const current = parseInt(el.textContent.replace(/,/g, '')) || 0;
+  gsap.to({ val: current }, {
+    val: target,
+    duration: 1.2,
+    ease: 'power3.out',
+    snap: { val: 1 },
+    onUpdate: function () {
+      el.textContent = Math.round(this.targets()[0].val).toLocaleString();
+    }
+  });
+}
+
+/* ── GSAP Shake Management ────────────────────────────────── */
+const shakeMap = new Map();
+
+function updateShake(card, name, cls) {
+  const existing = shakeMap.get(name);
+  if (cls === 'frying') {
+    if (!existing) {
+      const tween = gsap.to(card, {
+        x: 'random(-3, 3)',
+        duration: 0.06,
+        repeat: -1,
+        yoyo: true
+      });
+      shakeMap.set(name, tween);
+    }
+  } else {
+    if (existing) {
+      existing.kill();
+      gsap.set(card, { x: 0 });
+      shakeMap.delete(name);
+    }
+  }
+}
+
+/* ── Master Render ────────────────────────────────────────── */
+function renderAll() {
+  const svcs = state.services;
+
+  /* Classify all agents */
+  const classified = svcs.map(s => ({
+    ...s,
+    cls: classifyAgent(s),
+    health: s.health ?? (s.status === 'online' ? 100 : 0),
+  }));
+
+  const counts = { total: svcs.length, healthy: 0, warning: 0, frying: 0, dead: 0, restarts: 0 };
+  for (const a of classified) {
+    counts[a.cls]++;
+    counts.restarts += (a.restarts || 0);
+  }
+
+  /* Update stats */
+  animateStatTo('total', counts.total);
+  animateStatTo('healthy', counts.healthy);
+  animateStatTo('warning', counts.warning);
+  animateStatTo('frying', counts.frying);
+  animateStatTo('dead', counts.dead);
+  animateStatTo('restarts', counts.restarts);
+
+  /* Update shader fry count */
+  if (shaderUniforms) {
+    shaderUniforms.u_fryCount.value = counts.frying + counts.dead;
+  }
+
+  /* Track state transitions for Hall of Shame */
+  for (const a of classified) {
+    const prevCls = prevClassifications[a.name];
+    if ((a.cls === 'frying' || a.cls === 'dead') && prevCls !== a.cls) {
+      addShameEntry(a.name, a.cls, a.health);
+    }
+  }
+  prevClassifications = {};
+  for (const a of classified) prevClassifications[a.name] = a.cls;
+
+  /* Render panels */
+  renderAgentGrid(classified);
+  renderScoreboard(classified);
+  renderShame();
+
+  document.getElementById('square-count').textContent = svcs.length;
+}
+
+/* ── Agent Grid (The Square) ──────────────────────────────── */
+function renderAgentGrid(classified) {
+  const grid = document.getElementById('agent-grid');
+
+  /* Sort: frying first, then warning, dead, healthy */
+  const order = { frying: 0, warning: 1, dead: 2, healthy: 3 };
+  const sorted = [...classified].sort((a, b) => (order[a.cls] ?? 3) - (order[b.cls] ?? 3));
+
+  const hasTrouble = sorted.some(a => a.cls !== 'healthy');
+
+  if (!sorted.length) {
+    grid.innerHTML = '<div class="fry-empty">All agents operational.<br>The furnace sleeps.</div>';
+    return;
+  }
+
+  if (!hasTrouble) {
+    grid.innerHTML = '<div class="fry-empty">All agents operational.<br>The furnace sleeps.</div>';
+    /* Still render cards below the message? Let's show both */
+    /* Actually show cards with a subtle message */
+  }
+
+  const html = sorted.map(a => {
+    const mem = a.memory ? (a.memory / 1048576).toFixed(0) + 'MB' : '—';
+    const cpu = a.cpu !== undefined ? a.cpu + '%' : '—';
+    const up = a.uptime ? timeSince(a.uptime) : '—';
+    return `<div class="agent-card ${a.cls}" data-agent="${esc(a.name)}">
+      <div class="agent-card-name">${esc(a.name)}</div>
+      <div class="agent-card-status ${a.cls}">${a.cls === 'frying' ? '🔥 FRYING' : a.cls === 'dead' ? '💀 DEAD' : a.cls === 'warning' ? '⚠ WARNING' : '● HEALTHY'}</div>
+      <div class="health-bar-wrap"><div class="health-bar-fill ${a.cls}" style="width:${a.health}%"></div></div>
+      <div class="agent-card-metrics">
+        <span>${a.health}%</span>
+        <span>${cpu}</span>
+        <span>${mem}</span>
+        <span>↑${up}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const newHash = hashStr(html);
+  if (grid.dataset.hash !== String(newHash)) {
+    grid.innerHTML = html;
+    grid.dataset.hash = newHash;
+
+    /* Apply GSAP shake to frying cards */
+    grid.querySelectorAll('.agent-card').forEach(card => {
+      const name = card.dataset.agent;
+      const cls = card.classList.contains('frying') ? 'frying' : 'other';
+      updateShake(card, name, cls);
+    });
+
+    /* Stagger entrance */
+    gsap.from(grid.querySelectorAll('.agent-card'), {
+      y: 10, opacity: 0, duration: 0.4,
+      stagger: 0.04, ease: 'power3.out'
+    });
+  } else {
+    /* Update shakes even when HTML hasn't changed */
+    grid.querySelectorAll('.agent-card').forEach(card => {
+      const name = card.dataset.agent;
+      const cls = card.classList.contains('frying') ? 'frying' : 'other';
+      updateShake(card, name, cls);
+    });
+  }
+}
+
+/* ── Performance Scoreboard ───────────────────────────────── */
+function renderScoreboard(classified) {
+  const el = document.getElementById('scoreboard-body');
+  if (!classified.length) {
+    el.innerHTML = '<div class="feed-empty">Awaiting telemetry…</div>';
+    return;
+  }
+
+  /* Sort by health ascending (worst first) */
+  const sorted = [...classified].sort((a, b) => a.health - b.health);
+
+  let html = '<table class="scoreboard-table"><thead><tr><th>#</th><th>Agent</th><th>Health</th><th></th></tr></thead><tbody>';
+  sorted.forEach((a, i) => {
+    html += `<tr>
+      <td>${i + 1}</td>
+      <td>${esc(a.name)}</td>
+      <td>${a.health}%</td>
+      <td><span class="score-dot ${a.cls}"></span></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+
+  el.innerHTML = html;
+}
+
+/* ── Hall of Shame ────────────────────────────────────────── */
+function addShameEntry(name, cls, health) {
+  shameLog.unshift({
+    ts: Date.now(),
+    name,
+    cls,
+    health,
+  });
+  if (shameLog.length > MAX_SHAME) shameLog.pop();
+  document.getElementById('shame-count').textContent = shameLog.length;
+}
+
+function renderShame() {
+  const el = document.getElementById('shame-body');
+  if (!shameLog.length) {
+    el.innerHTML = '<div class="feed-empty">No failures recorded</div>';
+    return;
+  }
+
+  const html = shameLog.map(e => {
+    const d = new Date(e.ts);
+    const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'UTC' });
+    const verb = e.cls === 'dead' ? 'went offline' : 'entered frying state';
+    return `<div class="shame-entry">
+      <div class="shame-time">${time} UTC</div>
+      <div class="shame-text"><span class="shame-agent">${esc(e.name)}</span> ${verb} — health ${e.health}%</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════════ */
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function timeSince(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return s + 's';
+  if (s < 3600) return Math.floor(s / 60) + 'm';
+  if (s < 86400) return Math.floor(s / 3600) + 'h';
+  return Math.floor(s / 86400) + 'd';
+}
+function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i) | 0; return h; }
+
+/* ── Clock ────────────────────────────────────────────────── */
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'UTC' }) + ' UTC';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* ── Boot ─────────────────────────────────────────────────── */
+GlassSystem.init();
+connect();
+</script>
+</body>
+</html>

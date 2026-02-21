@@ -10,6 +10,7 @@ import type { AuthRateLimiter } from "./auth-rate-limit.js";
 import type { ResolvedGatewayAuth } from "./auth.js";
 import type { ChatAbortControllerEntry } from "./chat-abort.js";
 import type { ControlUiRootState } from "./control-ui.js";
+import { createDashboardHandler } from "./dashboard.js";
 import type { HooksConfigResolved } from "./hooks.js";
 import { resolveGatewayListenHosts } from "./net.js";
 import {
@@ -45,6 +46,8 @@ export async function createGatewayRuntimeState(params: {
   /** Optional rate limiter for auth brute-force protection. */
   rateLimiter?: AuthRateLimiter;
   gatewayTls?: GatewayTlsRuntime;
+  brainUrl?: string;
+  brainToken?: string;
   hooksConfig: () => HooksConfigResolved | null;
   pluginRegistry: PluginRegistry;
   deps: CliDeps;
@@ -115,6 +118,11 @@ export async function createGatewayRuntimeState(params: {
     log: params.logPlugins,
   });
 
+  const dashboardHandler = createDashboardHandler({
+    brainUrl: params.brainUrl || "",
+    brainToken: params.brainToken || "",
+  });
+
   const bindHosts = await resolveGatewayListenHosts(params.bindHost);
   const httpServers: HttpServer[] = [];
   const httpBindHosts: string[] = [];
@@ -133,6 +141,7 @@ export async function createGatewayRuntimeState(params: {
       resolvedAuth: params.resolvedAuth,
       rateLimiter: params.rateLimiter,
       tlsOptions: params.gatewayTls?.enabled ? params.gatewayTls.tlsOptions : undefined,
+      dashboard: dashboardHandler,
     });
     try {
       await listenGatewayHttpServer({
@@ -168,6 +177,7 @@ export async function createGatewayRuntimeState(params: {
       clients,
       resolvedAuth: params.resolvedAuth,
       rateLimiter: params.rateLimiter,
+      dashboard: dashboardHandler,
     });
   }
 
