@@ -189,6 +189,7 @@ export async function startGatewaySidecars(params: {
       | import("../config/types.brain.js").BrainConfig
       | undefined,
     sessionKey: resolveMainSessionKey(params.cfg),
+    workspacePath: params.defaultWorkspaceDir,
     log: {
       info: (msg: string) => params.log.warn(msg), // use warn level so it shows in logs
       warn: (msg: string) => params.log.warn(msg),
