@@ -560,6 +560,16 @@ export const TheiaOSSchema = z
       .strict()
       .optional(),
     memory: MemorySchema,
+    brain: z
+      .object({
+        enabled: z.boolean().optional(),
+        url: z.string().url().optional(),
+        token: z.string().optional(),
+        channel: z.string().optional(),
+        timeoutMs: z.number().int().min(1000).optional(),
+      })
+      .strict()
+      .optional(),
     skills: z
       .object({
         allowBundled: z.array(z.string()).optional(),

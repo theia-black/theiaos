@@ -25,6 +25,7 @@ import { resolveTheiaOSAgentDir } from "../../agent-paths.js";
 import { resolveSessionAgentIds } from "../../agent-scope.js";
 import { createAnthropicPayloadLogger } from "../../anthropic-payload-log.js";
 import { makeBootstrapWarn, resolveBootstrapContextForRun } from "../../bootstrap-files.js";
+import { fetchBrainContext } from "../../brain-context.js";
 import { createCacheTrace } from "../../cache-trace.js";
 import {
   listChannelSupportedActions,
@@ -284,6 +285,14 @@ export async function runEmbeddedAttempt(
       ? ["Reminder: commit your changes in this workspace after edits."]
       : undefined;
 
+    // Brain context injection — fetch consciousness from external brain API
+    const brainContext = await fetchBrainContext(params.config?.brain, params.agentId);
+    if (brainContext) {
+      contextFiles.push({
+        path: "BRAIN_CONTEXT",
+        content: brainContext,
+      });
+    }
     const agentDir = params.agentDir ?? resolveTheiaOSAgentDir();
 
     // Check if the model supports native image input
