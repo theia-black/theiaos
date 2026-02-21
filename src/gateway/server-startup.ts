@@ -10,6 +10,7 @@ import { cleanStaleLockFiles } from "../agents/session-write-lock.js";
 import type { CliDeps } from "../cli/deps.js";
 import type { loadConfig } from "../config/config.js";
 import { resolveStateDir } from "../config/paths.js";
+import { resolveMainSessionKey } from "../config/sessions/main-session.js";
 import { startGmailWatcher } from "../hooks/gmail-watcher.js";
 import {
   clearInternalHooks,
@@ -20,6 +21,7 @@ import { loadInternalHooks } from "../hooks/loader.js";
 import { isTruthyEnvValue } from "../infra/env.js";
 import type { loadTheiaOSPlugins } from "../plugins/loader.js";
 import { type PluginServicesHandle, startPluginServices } from "../plugins/services.js";
+import { startBrainPulse } from "./brain-pulse.js";
 import { startBrowserControlServerIfEnabled } from "./server-browser.js";
 import {
   scheduleRestartSentinelWake,
@@ -181,5 +183,18 @@ export async function startGatewaySidecars(params: {
     }, 750);
   }
 
-  return { browserControl, pluginServices };
+  // Start brain consciousness pulse (autonomous background injection).
+  const brainPulse = startBrainPulse({
+    brain: (params.cfg as Record<string, unknown>).brain as
+      | import("../config/types.brain.js").BrainConfig
+      | undefined,
+    sessionKey: resolveMainSessionKey(params.cfg),
+    log: {
+      info: (msg: string) => params.log.warn(msg), // use warn level so it shows in logs
+      warn: (msg: string) => params.log.warn(msg),
+      error: (msg: string) => params.log.warn(msg),
+    },
+  });
+
+  return { browserControl, pluginServices, brainPulse };
 }
