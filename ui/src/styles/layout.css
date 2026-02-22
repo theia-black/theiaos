@@ -53,6 +53,8 @@
 }
 
 .shell--onboarding .topbar {
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
   display: none;
 }
 
@@ -73,6 +75,8 @@
    =========================================== */
 
 .topbar {
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
   grid-area: topbar;
   position: sticky;
   top: 0;
@@ -84,7 +88,7 @@
   padding: 0 20px;
   height: var(--shell-topbar-height);
   border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  background: rgba(5, 5, 7, 0.7);
 }
 
 .topbar-left {
@@ -195,11 +199,13 @@
    =========================================== */
 
 .nav {
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
   grid-area: nav;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 16px 12px;
-  background: var(--bg);
+  background: rgba(5, 5, 7, 0.6);
   scrollbar-width: none; /* Firefox */
   transition:
     width var(--shell-focus-duration) var(--shell-focus-ease),
@@ -213,6 +219,8 @@
 }
 
 .shell--chat-focus .nav {
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
   width: 0;
   padding: 0;
   border-width: 0;
@@ -578,6 +586,8 @@
   }
 
   .nav {
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
     position: static;
     max-height: none;
     display: flex;
@@ -586,7 +596,7 @@
     border-right: none;
     border-bottom: 1px solid var(--border);
     padding: 10px 14px;
-    background: var(--bg);
+    background: rgba(5, 5, 7, 0.6);
   }
 
   .nav-group {
@@ -601,6 +611,8 @@
   }
 
   .topbar {
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
     position: static;
     padding: 12px 14px;
     gap: 10px;

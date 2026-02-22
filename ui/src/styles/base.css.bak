@@ -1,54 +1,54 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 
 :root {
   /* Background - Warmer dark with depth */
-  --bg: #050507;
-  --bg-accent: #08080b;
-  --bg-elevated: rgba(12, 12, 16, 0.65);
-  --bg-hover: #151519;
-  --bg-muted: #151519;
+  --bg: #12141a;
+  --bg-accent: #14161d;
+  --bg-elevated: #1a1d25;
+  --bg-hover: #262a35;
+  --bg-muted: #262a35;
 
   /* Card / Surface - More contrast between levels */
-  --card: rgba(10, 10, 14, 0.55);
+  --card: #181b22;
   --card-foreground: #f4f4f5;
   --card-highlight: rgba(255, 255, 255, 0.05);
-  --popover: rgba(10, 10, 14, 0.8);
+  --popover: #181b22;
   --popover-foreground: #f4f4f5;
 
   /* Panel */
-  --panel: rgba(8, 8, 12, 0.6);
-  --panel-strong: rgba(12, 12, 16, 0.7);
-  --panel-hover: #151519;
-  --chrome: rgba(8, 8, 12, 0.75);
-  --chrome-strong: rgba(8, 8, 12, 0.85);
+  --panel: #12141a;
+  --panel-strong: #1a1d25;
+  --panel-hover: #262a35;
+  --chrome: rgba(18, 20, 26, 0.95);
+  --chrome-strong: rgba(18, 20, 26, 0.98);
 
   /* Text - Slightly warmer */
-  --text: #d4d4d8;
-  --text-strong: #f0f0f2;
-  --chat-text: #d4d4d8;
+  --text: #e4e4e7;
+  --text-strong: #fafafa;
+  --chat-text: #e4e4e7;
   --muted: #71717a;
   --muted-strong: #52525b;
   --muted-foreground: #71717a;
 
   /* Border - Subtle but defined */
-  --border: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.12);
-  --border-hover: #3a3a42;
-  --input: #1a1a1e;
-  --ring: #C3131D;
+  --border: #27272a;
+  --border-strong: #3f3f46;
+  --border-hover: #52525b;
+  --input: #27272a;
+  --ring: #ff5c5c;
 
   /* Accent - Punchy signature red */
-  --accent: #C3131D;
-  --accent-hover: #e0161f;
-  --accent-muted: #C3131D;
-  --accent-subtle: rgba(195, 19, 29, 0.15);
+  --accent: #ff5c5c;
+  --accent-hover: #ff7070;
+  --accent-muted: #ff5c5c;
+  --accent-subtle: rgba(255, 92, 92, 0.15);
   --accent-foreground: #fafafa;
-  --accent-glow: rgba(195, 19, 29, 0.25);
-  --primary: #C3131D;
+  --accent-glow: rgba(255, 92, 92, 0.25);
+  --primary: #ff5c5c;
   --primary-foreground: #ffffff;
 
   /* Secondary - Teal accent for variety */
-  --secondary: #0c0c10;
+  --secondary: #1e2028;
   --secondary-foreground: #f4f4f5;
   --accent-2: #14b8a6;
   --accent-2-muted: rgba(20, 184, 166, 0.7);
@@ -58,18 +58,18 @@
   --ok: #22c55e;
   --ok-muted: rgba(34, 197, 94, 0.75);
   --ok-subtle: rgba(34, 197, 94, 0.12);
-  --destructive: #C3131D;
+  --destructive: #ef4444;
   --destructive-foreground: #fafafa;
   --warn: #f59e0b;
   --warn-muted: rgba(245, 158, 11, 0.75);
   --warn-subtle: rgba(245, 158, 11, 0.12);
-  --danger: #C3131D;
+  --danger: #ef4444;
   --danger-muted: rgba(239, 68, 68, 0.75);
   --danger-subtle: rgba(239, 68, 68, 0.12);
   --info: #3b82f6;
 
   /* Focus - With glow */
-  --focus: rgba(195, 19, 29, 0.25);
+  --focus: rgba(255, 92, 92, 0.25);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--ring);
   --focus-glow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ring), 0 0 20px var(--accent-glow);
 
@@ -83,14 +83,14 @@
   /* Typography - Space Grotesk for personality */
   --mono:
     "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
-  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display:
-    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
   /* Shadows - Richer with subtle color */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05), 0 0 40px rgba(195, 19, 29, 0.03);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05), 0 0 60px rgba(195, 19, 29, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.03);
   --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
   --shadow-glow: 0 0 30px var(--accent-glow);
 
@@ -357,7 +357,7 @@ select {
     box-shadow: 0 0 0 rgba(255, 92, 92, 0);
   }
   50% {
-    box-shadow: 0 0 30px var(--accent-glow);
+    box-shadow: 0 0 20px var(--accent-glow);
   }
 }
 
@@ -385,105 +385,4 @@ select {
 :focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
-}
-
-
-/* ===========================================
-   War Room — Glass Depth System
-   =========================================== */
-
-body {
-  background: #050507;
-  background-image:
-    radial-gradient(ellipse 80% 60% at 15% 85%, rgba(195, 19, 29, 0.07) 0%, transparent 55%),
-    radial-gradient(ellipse 50% 40% at 85% 15%, rgba(60, 20, 80, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse 70% 50% at 50% 50%, rgba(15, 10, 35, 0.1) 0%, transparent 65%),
-    radial-gradient(ellipse 30% 30% at 75% 75%, rgba(195, 19, 29, 0.04) 0%, transparent 45%),
-    radial-gradient(ellipse 40% 35% at 30% 30%, rgba(40, 15, 60, 0.05) 0%, transparent 50%);
-}
-
-/* Star layers — three depths with different sizes and drift speeds */
-body::before,
-body::after {
-  content: "";
-  position: fixed;
-  top: 0; left: 0;
-  width: 200vw; height: 200vh;
-  pointer-events: none;
-  z-index: 0;
-}
-
-body::before {
-  background-image:
-    radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 25% 35%, rgba(255,255,255,0.4), transparent),
-    radial-gradient(1px 1px at 40% 8%, rgba(255,255,255,0.3), transparent),
-    radial-gradient(1px 1px at 55% 42%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 70% 22%, rgba(255,255,255,0.35), transparent),
-    radial-gradient(1px 1px at 85% 55%, rgba(255,255,255,0.4), transparent),
-    radial-gradient(1px 1px at 15% 65%, rgba(255,255,255,0.45), transparent),
-    radial-gradient(1px 1px at 33% 78%, rgba(255,255,255,0.3), transparent),
-    radial-gradient(1px 1px at 48% 90%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 62% 72%, rgba(255,255,255,0.35), transparent),
-    radial-gradient(1px 1px at 78% 85%, rgba(255,255,255,0.4), transparent),
-    radial-gradient(1px 1px at 92% 38%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1.2px 1.2px at 18% 52%, rgba(255,255,255,0.55), transparent),
-    radial-gradient(1px 1px at 44% 18%, rgba(255,255,255,0.35), transparent),
-    radial-gradient(1px 1px at 75% 95%, rgba(255,255,255,0.5), transparent);
-  background-size: 200vw 200vh;
-  animation: star-drift-slow 180s linear infinite;
-}
-
-body::after {
-  background-image:
-    radial-gradient(1.5px 1.5px at 12% 22%, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1.5px 1.5px at 28% 68%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1.5px 1.5px at 45% 35%, rgba(255,255,255,0.55), transparent),
-    radial-gradient(1.5px 1.5px at 62% 82%, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1.5px 1.5px at 78% 48%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(2px 2px at 55% 12%, rgba(255,255,255,0.65), transparent),
-    radial-gradient(1.5px 1.5px at 72% 62%, rgba(255,255,255,0.55), transparent),
-    radial-gradient(2px 2px at 85% 78%, rgba(195,170,255,0.5), transparent),
-    radial-gradient(2px 2px at 42% 88%, rgba(255,220,200,0.5), transparent),
-    radial-gradient(1.5px 1.5px at 95% 55%, rgba(200,220,255,0.5), transparent);
-  background-size: 200vw 200vh;
-  animation: star-drift-mid 120s linear infinite;
-  opacity: 0.8;
-}
-
-theiaos-app::before {
-  content: "";
-  position: fixed;
-  top: 0; left: 0;
-  width: 200vw; height: 200vh;
-  pointer-events: none;
-  z-index: 0;
-  background-image:
-    radial-gradient(2.5px 2.5px at 22% 30%, rgba(255,255,255,0.8), transparent),
-    radial-gradient(2px 2px at 48% 72%, rgba(255,255,255,0.7), transparent),
-    radial-gradient(3px 3px at 75% 18%, rgba(255,240,230,0.75), transparent),
-    radial-gradient(2px 2px at 35% 85%, rgba(220,230,255,0.7), transparent),
-    radial-gradient(2.5px 2.5px at 88% 55%, rgba(255,255,255,0.8), transparent),
-    radial-gradient(3px 3px at 58% 42%, rgba(255,255,255,0.75), transparent);
-  background-size: 200vw 200vh;
-  animation: star-drift-near 80s linear infinite;
-  opacity: 0.7;
-}
-
-theiaos-app > * {
-  position: relative;
-  z-index: 1;
-}
-
-@keyframes star-drift-slow {
-  from { transform: translate(0, 0); }
-  to { transform: translate(-50vw, -30vh); }
-}
-@keyframes star-drift-mid {
-  from { transform: translate(0, 0); }
-  to { transform: translate(-40vw, -25vh); }
-}
-@keyframes star-drift-near {
-  from { transform: translate(0, 0); }
-  to { transform: translate(-30vw, -20vh); }
 }
